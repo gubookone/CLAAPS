@@ -413,6 +413,28 @@ enum class PumpType(
         source = Source.EOPatch2
     ),
 
+    // carelevo pump
+    CAREMEDI_CARELEVO(
+        description = "Caremedi Carelevo",
+        manufacturer = ManufacturerType.Carelevo,
+        model = "Carelevo",
+        bolusSize = 0.05,
+        specialBolusSize = null,
+        extendedBolusSettings = DoseSettings(0.05, 30, 8 * 60, 0.05, 25.0),
+        pumpTempBasalType = PumpTempBasalType.Absolute,
+        tbrSettings = DoseSettings(0.05, 30, 12 * 60, 0.0, 15.0),
+        specialBasalDurations = arrayOf(Capability.BasalRate_Duration30minAllowed),
+        baseBasalMinValue = 0.05,
+        baseBasalMaxValue = 15.0,
+        baseBasalStep = 0.05,
+        baseBasalSpecialSteps = null,
+        pumpCapability = PumpCapability.CarelevoCapabilities,
+        isPatchPump = true,
+        maxReservoirReading = 50,
+        source = Source.Carelevo
+    ),
+
+
     //Medtrum Nano Pump
     MEDTRUM_NANO(
         description = "Medtrum Nano",
@@ -507,6 +529,7 @@ enum class PumpType(
         OmnipodEros,
         OmnipodDash,
         EOPatch2,
+        Carelevo,
         Medtrum,
         MDI,
         VirtualPump,

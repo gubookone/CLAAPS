@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="lowReservoirArray">
+        <item>20 U</item>
+        <item>25 U</item>
+        <item>30 U</item>
+        <item>35 U</item>
+        <item>40 U</item>
+        <item>45 U</item>
+        <item>50 U</item>
+    </string-array>
+
+    <string-array name="lowReservoirValues">
+        <item>20</item>
+        <item>25</item>
+        <item>30</item>
+        <item>35</item>
+        <item>40</item>
+        <item>45</item>
+        <item>50</item>
+    </string-array>
+
+
+</resources>

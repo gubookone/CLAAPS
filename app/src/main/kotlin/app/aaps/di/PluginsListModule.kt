@@ -71,6 +71,7 @@ import dagger.Binds
 import dagger.Module
 import dagger.multibindings.IntKey
 import dagger.multibindings.IntoMap
+import info.nightscout.androidaps.plugins.pump.carelevo.CarelevoPumpPlugin
 import info.nightscout.pump.combov2.ComboV2Plugin
 import javax.inject.Qualifier
 
@@ -479,6 +480,12 @@ abstract class PluginsListModule {
     @IntoMap
     @IntKey(610)
     abstract fun bindAvgSmoothingPlugin(plugin: AvgSmoothingPlugin): PluginBase
+
+    @Binds
+    @PumpDriver
+    @IntoMap
+    @IntKey(620)
+    abstract fun bindCarelevoPumpPlugin(plugin : CarelevoPumpPlugin) : PluginBase
 
     @Qualifier
     annotation class AllConfigs

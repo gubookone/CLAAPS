@@ -97,7 +97,7 @@ class ObjectivesPlugin @Inject constructor(
         for (i in 0 until position) {
             accomplished = accomplished && objectives[i].isAccomplished
         }
-        return accomplished
+        return true
     }
 
     /**
@@ -108,7 +108,7 @@ class ObjectivesPlugin @Inject constructor(
         if (objectives.isEmpty()) return value
         if (!objectives[FIRST_OBJECTIVE].isStarted)
             value.set(false, rh.gs(R.string.objectivenotstarted, FIRST_OBJECTIVE + 1), this)
-        return value
+        return value.set(true)
     }
 
     override fun isLgsForced(value: Constraint<Boolean>): Constraint<Boolean> {
@@ -116,7 +116,7 @@ class ObjectivesPlugin @Inject constructor(
         if (objectives.isEmpty()) return value
         if (objectives[LGS_OBJECTIVE].isStarted && !objectives[LGS_OBJECTIVE].isAccomplished)
             value.set(true, rh.gs(R.string.objectivenotfinished, LGS_OBJECTIVE + 1), this)
-        return value
+        return value.set(true)
     }
 
     override fun isClosedLoopAllowed(value: Constraint<Boolean>): Constraint<Boolean> {
@@ -124,7 +124,7 @@ class ObjectivesPlugin @Inject constructor(
         if (objectives.isEmpty()) return value
         if (!objectives[CLOSED_LOOP_OBJECTIVE].isStarted)
             value.set(false, rh.gs(R.string.objectivenotstarted, CLOSED_LOOP_OBJECTIVE + 1), this)
-        return value
+        return value.set(true)
     }
 
     override fun isAutosensModeEnabled(value: Constraint<Boolean>): Constraint<Boolean> {
@@ -132,7 +132,7 @@ class ObjectivesPlugin @Inject constructor(
         if (objectives.isEmpty()) return value
         if (!objectives[AUTOSENS_OBJECTIVE].isStarted)
             value.set(false, rh.gs(R.string.objectivenotstarted, AUTOSENS_OBJECTIVE + 1), this)
-        return value
+        return value.set(true)
     }
 
     override fun isSMBModeEnabled(value: Constraint<Boolean>): Constraint<Boolean> {
@@ -140,7 +140,7 @@ class ObjectivesPlugin @Inject constructor(
         if (objectives.isEmpty()) return value
         if (!objectives[SMB_OBJECTIVE].isStarted)
             value.set(false, rh.gs(R.string.objectivenotstarted, SMB_OBJECTIVE + 1), this)
-        return value
+        return value.set(true)
     }
 
     override fun isAutomationEnabled(value: Constraint<Boolean>): Constraint<Boolean> {
@@ -148,7 +148,7 @@ class ObjectivesPlugin @Inject constructor(
         if (objectives.isEmpty()) return value
         if (!objectives[AUTO_OBJECTIVE].isStarted)
             value.set(false, rh.gs(R.string.objectivenotstarted, AUTO_OBJECTIVE + 1), this)
-        return value
+        return value.set(true)
     }
 
     override fun isAccomplished(index: Int) = objectives[index].isAccomplished

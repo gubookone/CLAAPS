@@ -1,0 +1,70 @@
+package info.nightscout.androidaps.plugins.pump.carelevo.di
+
+import android.content.Context
+import dagger.Module
+import dagger.Provides
+import info.nightscout.androidaps.plugins.pump.carelevo.ble.core.CarelevoBleController
+import info.nightscout.androidaps.plugins.pump.carelevo.ble.core.CarelevoBleControllerImpl
+import info.nightscout.androidaps.plugins.pump.carelevo.ble.core.CarelevoBleManager
+import info.nightscout.androidaps.plugins.pump.carelevo.ble.core.CarelevoBleMangerImpl
+import info.nightscout.androidaps.plugins.pump.carelevo.ble.data.BleParams
+import info.nightscout.androidaps.plugins.pump.carelevo.ble.data.ConfigParams
+import info.nightscout.androidaps.plugins.pump.carelevo.config.BleEnvConfig
+import java.util.UUID
+import javax.inject.Named
+import javax.inject.Singleton
+
+@Module
+class CarelevoBleModule {
+
+    @Provides
+    @Named("cccDescriptor")
+    internal fun provideCccDescriptor() : UUID = UUID.fromString(BleEnvConfig.BLE_CCC_DESCRIPTOR)
+
+    @Provides
+    @Named("serviceUuid")
+    internal fun provideServiceUuid() : UUID = UUID.fromString(BleEnvConfig.BLE_SERVICE_UUID)
+
+    @Provides
+    @Named("characterTx")
+    internal fun provideTxCharacteristicUuid() : UUID = UUID.fromString(BleEnvConfig.BLE_TX_CHAR_UUID)
+
+    @Provides
+    @Named("characterRx")
+    internal fun provideRxCharacteristicUuid() : UUID = UUID.fromString(BleEnvConfig.BLE_RX_CHAR_UUID)
+
+    @Provides
+    internal fun provideConfigParams() = ConfigParams(isForeground = true)
+
+    @Provides
+    internal fun provideBleParams(
+        @Named("cccDescriptor") cccd : UUID,
+        @Named("serviceUuid") serviceUuid : UUID,
+        @Named("characterTx") tx : UUID,
+        @Named("characterRx") rx : UUID
+    ) = BleParams(cccd, serviceUuid, tx, rx)
+
+    @Provides
+    @Singleton
+    internal fun provideCarelevoBleManager(
+        context : Context,
+        param : BleParams
+    ) : CarelevoBleManager {
+        return CarelevoBleMangerImpl(
+            context,
+            param
+        )
+    }
+
+    @Provides
+    @Singleton
+    internal fun provideCarelevoBleController(
+        param : BleParams,
+        btManager : CarelevoBleManager
+    ) : CarelevoBleController {
+        return CarelevoBleControllerImpl(
+            param,
+            btManager
+        )
+    }
+}
