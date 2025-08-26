@@ -30,23 +30,25 @@ import io.reactivex.rxjava3.kotlin.plusAssign
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.math.RoundingMode
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlin.jvm.optionals.getOrNull
-import kotlin.math.roundToInt
 
 class CarelevoOverviewViewModel @Inject constructor(
     private val pumpSync: PumpSync,
     private val dateUtil: DateUtil,
-    private val commandQueue : CommandQueue,
+    private val commandQueue: CommandQueue,
 
-    private val carelevoPatch : CarelevoPatch,
-    private val bleController : CarelevoBleController,
+    private val carelevoPatch: CarelevoPatch,
+    private val bleController: CarelevoBleController,
     private val aapsSchedulers: AapsSchedulers,
-    private val patchDiscardUseCase : CarelevoPatchDiscardUseCase,
-    private val patchForceDiscardUseCase : CarelevoPatchForceDiscardUseCase,
-    private val pumpStopUseCase : CarelevoPumpStopUseCase,
-    private val pumpResumeUseCase : CarelevoPumpResumeUseCase
+    private val patchDiscardUseCase: CarelevoPatchDiscardUseCase,
+    private val patchForceDiscardUseCase: CarelevoPatchForceDiscardUseCase,
+    private val pumpStopUseCase: CarelevoPumpStopUseCase,
+    private val pumpResumeUseCase: CarelevoPumpResumeUseCase
 ) : ViewModel() {
 
     private val _bleState = MutableLiveData<Boolean?>(null)
@@ -70,14 +72,20 @@ class CarelevoOverviewViewModel @Inject constructor(
     private val _basalRate = MutableLiveData<Double>()
     val basalRate get() = _basalRate
 
-    private val _tempBasalRate = MutableLiveData<Double>()
+    private val _tempBasalRate = MutableLiveData<String>()
     val tempBasalRate get() = _tempBasalRate
 
-    private val _insulinRemains = MutableLiveData<Double?>()
+    private val _insulinRemains = MutableLiveData<String?>()
     val insulinRemains get() = _insulinRemains
 
-    private val _totalDeliveredInsulinAmount = MutableLiveData<Double?>()
-    val totalDeliveredInsulinAmount get() = _totalDeliveredInsulinAmount
+    private val _totalDeliveredBasalAmount = MutableLiveData<Double?>()
+    val totalDeliveredBasalAmount get() = _totalDeliveredBasalAmount
+
+    private val _totalDeliveredBolusAmount = MutableLiveData<Double?>()
+    val totalDeliveredBolusAmount get() = _totalDeliveredBolusAmount
+
+    private val _runningRemainMinutes = MutableLiveData<Int?>()
+    val runningRemainMinutes get() = _runningRemainMinutes
 
     private var _isCreated = false
     val isCreated get() = _isCreated
@@ -85,10 +93,10 @@ class CarelevoOverviewViewModel @Inject constructor(
     private val _event = MutableEventFlow<Event>()
     val event = _event.asEventFlow()
 
-    private val _uiState : MutableStateFlow<State> = MutableStateFlow(UiState.Idle)
+    private val _uiState: MutableStateFlow<State> = MutableStateFlow(UiState.Idle)
     val uiState = _uiState.asStateFlow()
 
-    private var _isPumpStop = MutableLiveData<Boolean>(false)
+    private var _isPumpStop = MutableLiveData(false)
     val isPumpStop get() = _isPumpStop
 
     private val compositeDisposable = CompositeDisposable()
@@ -98,8 +106,7 @@ class CarelevoOverviewViewModel @Inject constructor(
         Log.d("connect_test", "[CarelevoOverviewViewModel::init] compositeDisposable is disposed : ${compositeDisposable.isDisposed}")
     }
 
-
-    fun setIsCreated(isCreated : Boolean) {
+    fun setIsCreated(isCreated: Boolean) {
         _isCreated = isCreated
     }
 
@@ -109,21 +116,24 @@ class CarelevoOverviewViewModel @Inject constructor(
                 Log.d("connect_test", "[CarelevoOverviewViewModel::observePatchInfo] doOnError called : $it")
             }
             .observeOn(aapsSchedulers.main)
-            .subscribe {
-                Log.d("connect_test", "[CarelevoOverviewViewModel::observePatchInfo] info : ${it.getOrNull()}")
-                val currentThread = Thread.currentThread()
-                Log.d("connect_test", "[CarelevoOverviewViewModel::observePatchInfo] current thread name : ${currentThread.name}")
-                _serialNumber.value = it?.getOrNull()?.manufactureNumber ?: ""
-                _lotNumber.value = it?.getOrNull()?.manufactureNumber ?: ""
-                _bootDateTime.value = it?.getOrNull()?.bootDateTime ?: ""
-                _expirationTime.value = it?.getOrNull()?.thresholdExpiry
-                _infusionStatus.value = it?.getOrNull()?.mode
-                _insulinRemains.value = it?.getOrNull()?.insulinRemain
-                val inputInsulin = it?.getOrNull()?.insulinAmount ?: 0
-                val totalAmount = inputInsulin - (it?.getOrNull()?.insulinRemain ?: 0.0)
-                // val totalAmount = (it?.getOrNull()?.infusedTotalBasalAmount ?: 0.0) + (it?.getOrNull()?.infusedTotalBolusAmount ?: 0.0)
-                _totalDeliveredInsulinAmount.value = totalAmount
-                _isPumpStop.value = it?.getOrNull()?.isStopped ?: false
+            .subscribe { result ->
+                val info = result.getOrNull() ?: return@subscribe
+
+                Log.d("connect_test", "[CarelevoOverviewViewModel::observePatchInfo] info : $info")
+                Log.d("connect_test", "[CarelevoOverviewViewModel::observePatchInfo] thread : ${Thread.currentThread().name}")
+
+
+                _serialNumber.value = info.manufactureNumber ?: ""
+                _lotNumber.value = info.firmwareVersion ?: ""
+                _bootDateTime.value = parseBootDateTime(info.bootDateTime).toString()
+                _expirationTime.value = info.thresholdExpiry
+                _infusionStatus.value = info.mode
+                _insulinRemains.value = "${info.insulinRemain} / ${info.insulinAmount} U"
+                _totalDeliveredBasalAmount.value = (info.infusedTotalBasalAmount ?: 0.0).toBigDecimal().setScale(2, RoundingMode.HALF_UP).toDouble()
+                _totalDeliveredBolusAmount.value = (info.infusedTotalBolusAmount ?: 0.0).toBigDecimal().setScale(2, RoundingMode.HALF_UP).toDouble()
+                _isPumpStop.value = info.isStopped ?: false
+                _runningRemainMinutes.value = info.runningMinutes ?: 0
+
             }
     }
 
@@ -135,11 +145,11 @@ class CarelevoOverviewViewModel @Inject constructor(
             .observeOn(aapsSchedulers.main)
             .subscribe {
                 Log.d("connect_test", "[CarelevoOverviewViewModel::observePatchState] state : ${it.getOrNull()}")
-                it?.getOrNull()?.let {
-                    when(it) {
-                        is PatchState.ConnectedBooted -> _bleState.value = true
+                it?.getOrNull()?.let { patchState ->
+                    when (patchState) {
+                        is PatchState.ConnectedBooted        -> _bleState.value = true
                         is PatchState.NotConnectedNotBooting -> _bleState.value = null
-                        else -> _bleState.value = false
+                        else                                 -> _bleState.value = false
                     }
                 }
             }
@@ -149,7 +159,9 @@ class CarelevoOverviewViewModel @Inject constructor(
         compositeDisposable += carelevoPatch.infusionInfo
             .observeOn(aapsSchedulers.main)
             .subscribe {
-                _tempBasalRate.value = it?.getOrNull()?.tempBasalInfusionInfo?.speed ?: 0.0
+                _tempBasalRate.value = it?.getOrNull()?.tempBasalInfusionInfo?.let { info ->
+                    "${info.speed ?: 0.0}(${info.infusionDurationMin}초)"
+                } ?: "0.0"
             }
     }
 
@@ -161,32 +173,34 @@ class CarelevoOverviewViewModel @Inject constructor(
             }
     }
 
-    fun triggerEvent(event : Event) {
+    fun triggerEvent(event: Event) {
         viewModelScope.launch {
-            when(event) {
+            when (event) {
                 is CarelevoOverviewEvent -> generateEventType(event).run { _event.emit(this) }
             }
         }
     }
 
-    private fun generateEventType(event: Event) : Event {
-        return when(event) {
-            is CarelevoOverviewEvent.ShowMessageBluetoothNotEnabled -> event
+    private fun generateEventType(event: Event): Event {
+        return when (event) {
+            is CarelevoOverviewEvent.ShowMessageBluetoothNotEnabled    -> event
             is CarelevoOverviewEvent.ShowMessageCarelevoIsNotConnected -> event
-            is CarelevoOverviewEvent.DiscardComplete -> event
-            is CarelevoOverviewEvent.DiscardFailed -> event
-            is CarelevoOverviewEvent.ResumePumpComplete -> event
-            is CarelevoOverviewEvent.ResumePumpFailed -> event
-            is CarelevoOverviewEvent.StopPumpComplete -> event
-            is CarelevoOverviewEvent.StopPumpFailed -> event
-            is CarelevoOverviewEvent.ClickPumpStopResumeBtn -> {
-                when(carelevoPatch.getPatchState()) {
+            is CarelevoOverviewEvent.DiscardComplete                   -> event
+            is CarelevoOverviewEvent.DiscardFailed                     -> event
+            is CarelevoOverviewEvent.ResumePumpComplete                -> event
+            is CarelevoOverviewEvent.ResumePumpFailed                  -> event
+            is CarelevoOverviewEvent.StopPumpComplete                  -> event
+            is CarelevoOverviewEvent.StopPumpFailed                    -> event
+
+            is CarelevoOverviewEvent.ClickPumpStopResumeBtn            -> {
+                when (carelevoPatch.getPatchState()) {
                     is PatchState.NotConnectedNotBooting -> {
                         CarelevoOverviewEvent.ShowMessageCarelevoIsNotConnected
                     }
-                    else -> {
+
+                    else                                 -> {
                         val isStop = carelevoPatch.patchInfo.value?.get()?.isStopped ?: false
-                        if(isStop) {
+                        if (isStop) {
                             CarelevoOverviewEvent.ShowPumpResumeDialog
                         } else {
                             CarelevoOverviewEvent.ShowPumpStopDurationSelectDialog
@@ -194,18 +208,19 @@ class CarelevoOverviewViewModel @Inject constructor(
                     }
                 }
             }
-            else -> CarelevoOverviewEvent.NoAction
+
+            else                                                       -> CarelevoOverviewEvent.NoAction
         }
     }
 
-    private fun setUiState(state : State) {
+    private fun setUiState(state: State) {
         viewModelScope.launch {
             _uiState.tryEmit(state)
         }
     }
 
     fun startDiscardProcess() {
-        if(!carelevoPatch.isCarelevoConnected()) {
+        if (!carelevoPatch.isCarelevoConnected()) {
             startPatchForceDiscard()
         } else {
             startPatchDiscard()
@@ -224,7 +239,7 @@ class CarelevoOverviewViewModel @Inject constructor(
                 triggerEvent(CarelevoOverviewEvent.DiscardFailed)
             }
             .subscribe { response ->
-                when(response) {
+                when (response) {
                     is ResponseResult.Success -> {
                         Log.d("connect_test", "[CarelevoOverviewViewModel::startPatchDiscard] response success")
                         bleController.unBondDevice()
@@ -232,12 +247,14 @@ class CarelevoOverviewViewModel @Inject constructor(
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoOverviewEvent.DiscardComplete)
                     }
-                    is ResponseResult.Error -> {
+
+                    is ResponseResult.Error   -> {
                         Log.d("connect_test", "[CarelevoOverviewVewModel::startPatchDiscard] response error : ${response.e}")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoOverviewEvent.DiscardFailed)
                     }
-                    else -> {
+
+                    else                      -> {
                         Log.d("connect_test", "[CarelevoOverviewViewModel::startPatchDiscard] response failed")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoOverviewEvent.DiscardFailed)
@@ -258,7 +275,7 @@ class CarelevoOverviewViewModel @Inject constructor(
                 triggerEvent(CarelevoOverviewEvent.DiscardFailed)
             }
             .subscribe { response ->
-                when(response) {
+                when (response) {
                     is ResponseResult.Success -> {
                         Log.d("connect_test", "[CarelevoOverviewViewModel::startPatchForceDiscard] response success")
                         bleController.unBondDevice()
@@ -266,12 +283,14 @@ class CarelevoOverviewViewModel @Inject constructor(
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoOverviewEvent.DiscardComplete)
                     }
-                    is ResponseResult.Error -> {
+
+                    is ResponseResult.Error   -> {
                         Log.d("connect_test", "[CarelevoOverviewViewModel::startPatchForceDiscard] response error : ${response.e}")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoOverviewEvent.DiscardFailed)
                     }
-                    else -> {
+
+                    else                      -> {
                         Log.d("connect_test", "[CarelevoOverviewViewModel::startPatchForceDiscard] response failed")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoOverviewEvent.DiscardFailed)
@@ -280,24 +299,24 @@ class CarelevoOverviewViewModel @Inject constructor(
             }
     }
 
-    fun startPumpStopProcess(stopMinute : Int) {
-        if(!carelevoPatch.isBluetoothEnabled()) {
+    fun startPumpStopProcess(stopMinute: Int) {
+        if (!carelevoPatch.isBluetoothEnabled()) {
             triggerEvent(CarelevoOverviewEvent.ShowMessageBluetoothNotEnabled)
             return
         }
-        if(!carelevoPatch.isCarelevoConnected()) {
+        if (!carelevoPatch.isCarelevoConnected()) {
             triggerEvent(CarelevoOverviewEvent.ShowMessageCarelevoIsNotConnected)
             return
         }
 
         setUiState(UiState.Loading)
         val infusionInfo = carelevoPatch.infusionInfo.value?.getOrNull()
-        val cancelExtendBolusResult = if(infusionInfo?.extendBolusInfusionInfo != null) {
+        val cancelExtendBolusResult = if (infusionInfo?.extendBolusInfusionInfo != null) {
             cancelExtendBolus()
         } else {
             true
         }
-        val cancelTempBasalResult = if(infusionInfo?.tempBasalInfusionInfo != null) {
+        val cancelTempBasalResult = if (infusionInfo?.tempBasalInfusionInfo != null) {
             cancelTempBasal()
         } else {
             true
@@ -306,7 +325,7 @@ class CarelevoOverviewViewModel @Inject constructor(
         Log.d("stop_pump_test", "[CarelevoOverviewViewModel::startPumpStopProcess] cancelTempBasalResult : $cancelTempBasalResult")
         Log.d("stop_pump_test", "[CarelevoOverviewViewModel::startPumpStopProcess] cancelExtendBolusResult : $cancelExtendBolusResult")
 
-        if(cancelExtendBolusResult && cancelTempBasalResult) {
+        if (cancelExtendBolusResult && cancelTempBasalResult) {
             compositeDisposable += pumpStopUseCase.execute(
                 CarelevoPumpStopRequestModel(
                     durationMin = stopMinute
@@ -321,7 +340,7 @@ class CarelevoOverviewViewModel @Inject constructor(
                     triggerEvent(CarelevoOverviewEvent.StopPumpFailed)
                 }
                 .subscribe { response ->
-                    when(response) {
+                    when (response) {
                         is ResponseResult.Success -> {
                             Log.d("stop_pump_test", "[CarelevoOverviewViewModel::startPumpStopProcess] response success")
                             pumpSync.syncTemporaryBasalWithPumpId(
@@ -337,12 +356,14 @@ class CarelevoOverviewViewModel @Inject constructor(
                             setUiState(UiState.Idle)
                             triggerEvent(CarelevoOverviewEvent.StopPumpComplete)
                         }
-                        is ResponseResult.Error -> {
+
+                        is ResponseResult.Error   -> {
                             Log.d("stop_pump_test", "[CarelevoOverviewViewModel::startPumpStopProcess] response error ${response.e}")
                             setUiState(UiState.Idle)
                             triggerEvent(CarelevoOverviewEvent.StopPumpFailed)
                         }
-                        else -> {
+
+                        else                      -> {
                             Log.d("stop_pump_test", "[CarelevoOverviewViewModel::startPumpStopProcess] response failed")
                             setUiState(UiState.Idle)
                             triggerEvent(CarelevoOverviewEvent.StopPumpFailed)
@@ -356,21 +377,21 @@ class CarelevoOverviewViewModel @Inject constructor(
         }
     }
 
-    private fun cancelTempBasal() : Boolean {
+    private fun cancelTempBasal(): Boolean {
         return commandQueue.cancelTempBasal(true, null)
     }
 
-    private fun cancelExtendBolus() : Boolean {
+    private fun cancelExtendBolus(): Boolean {
         return commandQueue.cancelExtended(null)
     }
 
     fun startPumpResume() {
-        if(!carelevoPatch.isBluetoothEnabled()) {
+        if (!carelevoPatch.isBluetoothEnabled()) {
             triggerEvent(CarelevoOverviewEvent.ShowMessageBluetoothNotEnabled)
             return
         }
 
-        if(!carelevoPatch.isCarelevoConnected()) {
+        if (!carelevoPatch.isCarelevoConnected()) {
             triggerEvent(CarelevoOverviewEvent.ShowMessageCarelevoIsNotConnected)
             return
         }
@@ -386,7 +407,7 @@ class CarelevoOverviewViewModel @Inject constructor(
                 triggerEvent(CarelevoOverviewEvent.ResumePumpFailed)
             }
             .subscribe { response ->
-                when(response) {
+                when (response) {
                     is ResponseResult.Success -> {
                         Log.d("resume_pump_test", "[CarlevoOverviewViewModel::startPumpResume] response success")
                         pumpSync.syncStopTemporaryBasalWithPumpId(
@@ -398,18 +419,34 @@ class CarelevoOverviewViewModel @Inject constructor(
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoOverviewEvent.ResumePumpComplete)
                     }
-                    is ResponseResult.Error -> {
+
+                    is ResponseResult.Error   -> {
                         Log.d("resume_pump_test", "[CarelevoOverviewViewModel::startPumpResume] response error : ${response.e}")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoOverviewEvent.ResumePumpFailed)
                     }
-                    else -> {
+
+                    else                      -> {
                         Log.d("resume_pump_test", "[CarelevoOverviewViewModel::startPumpResume] response failed")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoOverviewEvent.ResumePumpFailed)
                     }
                 }
             }
+    }
+
+    fun parseBootDateTime(raw: String?): String? {
+        if (raw.isNullOrBlank()) {
+            return "-"
+        }
+        return try {
+            val formatter = DateTimeFormatter.ofPattern("yyMMddHHmm")
+            val dateTime = LocalDateTime.parse(raw, formatter)
+
+            dateTime.format(DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm"))
+        } catch (e: Exception) {
+            "-"
+        }
     }
 
     override fun onCleared() {

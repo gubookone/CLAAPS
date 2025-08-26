@@ -4,7 +4,7 @@ import android.util.Log
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.ResponseResult
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.result.ResultSuccess
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.CarelevoPatchInfoRepository
-import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.CarelevoUseCaseRequset
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.CarelevoUseCaseRequest
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.CarelevoUseCaseResponse
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.model.CarelevoPatchRptInfusionInfoRequestModel
 import io.reactivex.rxjava3.core.Single
@@ -13,13 +13,13 @@ import org.joda.time.DateTime
 import javax.inject.Inject
 
 class CarelevoPatchRptInfusionInfoProcessUseCase @Inject constructor(
-    private val patchInfoRepository : CarelevoPatchInfoRepository
+    private val patchInfoRepository: CarelevoPatchInfoRepository
 ) {
 
-    fun execute(request : CarelevoUseCaseRequset) : Single<ResponseResult<CarelevoUseCaseResponse>> {
+    fun execute(request: CarelevoUseCaseRequest): Single<ResponseResult<CarelevoUseCaseResponse>> {
         return Single.fromCallable {
             runCatching {
-                if(request !is CarelevoPatchRptInfusionInfoRequestModel) {
+                if (request !is CarelevoPatchRptInfusionInfoRequestModel) {
                     throw IllegalArgumentException("request is not carelevoPatchRptInfusionInfoRequestModel")
                 }
 
@@ -40,7 +40,7 @@ class CarelevoPatchRptInfusionInfoProcessUseCase @Inject constructor(
                     )
                 )
 
-                if(!updatePatchInfoResult) {
+                if (!updatePatchInfoResult) {
                     throw IllegalStateException("update patch info is failed")
                 }
                 ResultSuccess

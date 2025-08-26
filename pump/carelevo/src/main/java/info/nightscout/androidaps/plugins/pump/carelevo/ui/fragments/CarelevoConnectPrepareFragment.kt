@@ -1,8 +1,13 @@
 package info.nightscout.androidaps.plugins.pump.carelevo.ui.fragments
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import app.aaps.core.ui.toast.ToastUtils
@@ -24,16 +29,17 @@ import info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoCon
 class CarelevoConnectPrepareFragment : CarelevoBaseFragment<FragmentCarelevoConnectPrepareBinding>(R.layout.fragment_carelevo_connect_prepare) {
 
     companion object {
-        fun getInstance() : CarelevoConnectPrepareFragment = CarelevoConnectPrepareFragment()
+
+        fun getInstance(): CarelevoConnectPrepareFragment = CarelevoConnectPrepareFragment()
     }
 
-    private val viewModel : CarelevoConnectPrepareViewModel by viewModels { viewModelFactory }
-    private val sharedViewModel : CarelevoConnectViewModel by activityViewModels { viewModelFactory }
+    private val viewModel: CarelevoConnectPrepareViewModel by viewModels { viewModelFactory }
+    private val sharedViewModel: CarelevoConnectViewModel by activityViewModels { viewModelFactory }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        if(!viewModel.isCreated) {
+        if (!viewModel.isCreated) {
             viewModel.observeScannedDevice()
             viewModel.setIsCreated(true)
         }
@@ -50,20 +56,37 @@ class CarelevoConnectPrepareFragment : CarelevoBaseFragment<FragmentCarelevoConn
                 showDialogDiscardConfirm(
                     positiveCallback = {
                         viewModel.startPatchDiscardProcess()
-                    }
-                )
+                    })
             }
 
             btnNext.setOnClickListener {
                 showDialogInsulinInput(
-                    insulin = viewModel.inputInsulin,
-                    positiveCallback = {
-                        viewModel.setInputInsulin(it)
-                        viewModel.startScan()
-                    }
-                )
+                    insulin = viewModel.inputInsulin, positiveCallback = {
+                        if (checkPermissions()) {
+                            viewModel.setInputInsulin(it)
+                            viewModel.startScan()
+                        } else {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                ActivityCompat.requestPermissions(requireActivity(), arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT), 100)
+                            } else {
+                                ActivityCompat.requestPermissions(requireActivity(), arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 100)
+                            }
+                        }
+                    })
             }
         }
+    }
+
+    private fun checkPermissions(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            (hasPermission(Manifest.permission.BLUETOOTH_SCAN) && hasPermission(Manifest.permission.BLUETOOTH_CONNECT))
+        } else {
+            hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
+
+    private fun hasPermission(permissionType: String): Boolean {
+        return ContextCompat.checkSelfPermission(requireContext(), permissionType) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun setupObserver() {
@@ -82,52 +105,54 @@ class CarelevoConnectPrepareFragment : CarelevoBaseFragment<FragmentCarelevoConn
 
     private fun showConnectDialog() {
         viewModel.selectedDevice?.let {
-            showDialogConnect(
-                address = it.device.address,
-                negativeCallback = {
-                    viewModel.startScan()
-                },
-                positiveCallback = {
-                    Log.d("connect_test", "[CarelevoConnectPrepareFragment::showConnectDialog] click positive")
-                    // viewModel.startConnect()
-                    viewModel.startConnect()
-                }
-            )
+            showDialogConnect(address = it.device.address, negativeCallback = {
+                viewModel.startScan()
+            }, positiveCallback = {
+                Log.d("connect_test", "[CarelevoConnectPrepareFragment::showConnectDialog] click positive")
+                viewModel.startConnect()
+            })
         }
     }
 
-    private fun handelState(state : State) {
-        when(state) {
-            is UiState.Idle -> hideFullScreenProgress()
+    private fun handelState(state: State) {
+        when (state) {
+            is UiState.Idle    -> hideFullScreenProgress()
             is UiState.Loading -> showFullScreenProgress()
-            else -> hideFullScreenProgress()
+            else               -> hideFullScreenProgress()
         }
     }
 
-    private fun handleEvent(event : Event) {
-        when(event) {
-            is CarelevoConnectPrepareEvent.ShowConnectDialog -> {
+    private fun handleEvent(event: Event) {
+        when (event) {
+            is CarelevoConnectPrepareEvent.ShowConnectDialog                 -> {
                 showConnectDialog()
             }
-            is CarelevoConnectPrepareEvent.ShowMessageScanFailed -> {
+
+            is CarelevoConnectPrepareEvent.ShowMessageScanFailed             -> {
                 ToastUtils.infoToast(requireContext(), "스캔 실패했습니다. 다시 시도해 주세요.")
             }
-            is CarelevoConnectPrepareEvent.ShowMessageBluetoothNotEnabled -> {
+
+            is CarelevoConnectPrepareEvent.ShowMessageBluetoothNotEnabled    -> {
                 ToastUtils.infoToast(requireContext(), "블루투스 연결 상태를 확인해 주세요.")
             }
-            is CarelevoConnectPrepareEvent.ShowMessageScanIsWorking -> {
+
+            is CarelevoConnectPrepareEvent.ShowMessageScanIsWorking          -> {
                 ToastUtils.infoToast(requireContext(), "스캔 중 입니다. 잠시만 기다려 주세요.")
             }
-            is CarelevoConnectPrepareEvent.ShowMessageNotSetUserSettingInfo -> {
+
+            is CarelevoConnectPrepareEvent.ShowMessageNotSetUserSettingInfo  -> {
                 ToastUtils.infoToast(requireContext(), "설정 정보가 없습니다.")
             }
+
             is CarelevoConnectPrepareEvent.ShowMessageSelectedDeviceIseEmpty -> {
                 ToastUtils.infoToast(requireContext(), "검색된 패치가 없습니다. 다시 시도해 주세요.")
             }
-            is CarelevoConnectPrepareEvent.ConnectFailed -> {
+
+            is CarelevoConnectPrepareEvent.ConnectFailed                     -> {
                 ToastUtils.infoToast(requireContext(), "패치 연결 실패 했습니다. 다시 시도해 주세요.")
             }
-            is CarelevoConnectPrepareEvent.ConnectComplete -> {
+
+            is CarelevoConnectPrepareEvent.ConnectComplete                   -> {
                 ToastUtils.infoToast(requireContext(), "피채 연결 성공 했습니다.")
                 sharedViewModel.setPage(1)
             }

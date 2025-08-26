@@ -40,6 +40,7 @@ import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
 import app.aaps.core.keys.DoubleKey
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.validators.preferences.AdaptiveIntPreference
+import app.aaps.core.validators.preferences.AdaptiveListIntPreference
 import app.aaps.core.validators.preferences.AdaptiveSwitchPreference
 import info.nightscout.androidaps.plugins.pump.carelevo.ble.CarelevoBleSource
 import info.nightscout.androidaps.plugins.pump.carelevo.ble.core.CarelevoBleController
@@ -109,7 +110,7 @@ class CarelevoPumpPlugin @Inject constructor(
     private val instantiator: Instantiator,
     private val carelevoProtocolParserRegister: CarelevoProtocolParserRegister,
     private val carelevoPatch: CarelevoPatch,
-    private val bleController : CarelevoBleController,
+    private val bleController: CarelevoBleController,
 
     private val updateBasalProgramUseCase: CarelevoUpdateBasalProgramUseCase,
     private val startTempBasalInfusionUseCase: CarelevoStartTempBasalInfusionUseCase,
@@ -120,9 +121,9 @@ class CarelevoPumpPlugin @Inject constructor(
     private val cancelExtendBolusInfusionUseCase: CarelevoCancelExtendBolusInfusionUseCase,
     private val finishImmeBolusInfusionUseCase: CarelevoFinishImmeBolusInfusionUseCase,
 
-    private val updateMaxBolusDoseUseCase : CarelevoUpdateMaxBolusDoseUseCase,
-    private val updateLowInsulinNoticeAmountUseCase : CarelevoUpdateLowInsulinNoticeAmountUseCase,
-    private val deleteUserSettingInfoUseCase : CarelevoDeleteUserSettingInfoUseCase,
+    private val updateMaxBolusDoseUseCase: CarelevoUpdateMaxBolusDoseUseCase,
+    private val updateLowInsulinNoticeAmountUseCase: CarelevoUpdateLowInsulinNoticeAmountUseCase,
+    private val deleteUserSettingInfoUseCase: CarelevoDeleteUserSettingInfoUseCase,
 
     private val requestPatchInfusionInfoUseCase: CarelevoRequestPatchInfusionInfoUseCase
 ) : PumpPluginBase(
@@ -146,7 +147,7 @@ class CarelevoPumpPlugin @Inject constructor(
     private val _pumpDescription = PumpDescription().fillFor(_pumpType)
     private var isImmeBolusStop = false
 
-    @Inject @Named("characterTx") lateinit var txUuid : UUID
+    @Inject @Named("characterTx") lateinit var txUuid: UUID
     private val reconnectDisposable = CompositeDisposable()
 
     override fun onStart() {
@@ -162,7 +163,11 @@ class CarelevoPumpPlugin @Inject constructor(
                     Log.d("plugin_test", "[CarelevoPumpPlugin::get Pref change event] max bolus change")
                     updateMaxBolusDose()
                 }
-                if (event.isChanged(rh.gs(R.string.key_carelevo_low_reservoir_reminders))) {
+                if (event.isChanged(CarelevoIntPreferenceKey.CARELEVO_PATCH_EXPIRATION_REMINDER_HOURS.key)) {
+                    Log.d("plugin_test", "[CarelevoPumpPlugin::get pref change event] patch_expiration")
+                    //updateLowInsulinNoticeAmount()
+                }
+                if (event.isChanged(CarelevoIntPreferenceKey.CARELEVO_LOW_INSULIN_EXPIRATION_REMINDER_HOURS.key)) {
                     Log.d("plugin_test", "[CarelevoPumpPlugin::get pref change event] low insulin amount change")
                     updateLowInsulinNoticeAmount()
                 }
@@ -179,7 +184,7 @@ class CarelevoPumpPlugin @Inject constructor(
 
                 val patchState = carelevoPatch.patchState.value?.getOrNull()
                 Log.d("plugin_test", "[CarelevoPumpPlugin::onStart] patchState : $patchState")
-                if(patchState != PatchState.NotConnectedNotBooting && patchState != PatchState.ConnectedBooted) {
+                if (patchState != PatchState.NotConnectedNotBooting && patchState != PatchState.ConnectedBooted) {
                     startReconnect()
                 }
             }
@@ -221,7 +226,7 @@ class CarelevoPumpPlugin @Inject constructor(
             .subscribeOn(aapsSchedulers.io)
             .timeout(3000L, TimeUnit.MILLISECONDS)
             .subscribe { response ->
-                when(response) {
+                when (response) {
                     is ResponseResult.Success -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::updateMaxBolusDose] response success")
                     }
@@ -238,9 +243,10 @@ class CarelevoPumpPlugin @Inject constructor(
     }
 
     private fun updateLowInsulinNoticeAmount() {
-        val lowInsulinNoticeAmount = sp.getInt(R.string.key_carelevo_low_reservoir_reminders, 0)
+        val lowInsulinNoticeAmount = sp.getInt(CarelevoIntPreferenceKey.CARELEVO_LOW_INSULIN_EXPIRATION_REMINDER_HOURS.key, 0)
         val patchState = carelevoPatch.patchState.value?.getOrNull()
 
+        Log.d("CarelevoPumpPlugin", "lowInsulinNoticeAmount($lowInsulinNoticeAmount)")
         if (lowInsulinNoticeAmount == 0) {
             return
         }
@@ -277,7 +283,7 @@ class CarelevoPumpPlugin @Inject constructor(
             .subscribeOn(aapsSchedulers.io)
             .timeout(3000L, TimeUnit.MILLISECONDS)
             .subscribe { response ->
-                when(response) {
+                when (response) {
                     is ResponseResult.Success -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::deleteUserSettingInfo] response success")
                     }
@@ -296,20 +302,27 @@ class CarelevoPumpPlugin @Inject constructor(
     override fun addPreferenceScreen(preferenceManager: PreferenceManager, parent: PreferenceScreen, context: Context, requiredKey: String?) {
         if (requiredKey != null) return
 
-        val beepCategory = PreferenceCategory(context)
-        parent.addPreference(beepCategory)
-        beepCategory.apply {
+        val lowReservoirEntries = arrayOf<CharSequence>("20 U", "25 U", "30 U", "35 U", "40 U", "45 U", "50 U")
+        val lowReservoirValues = arrayOf<CharSequence>("20", "25", "30", "35", "40", "45", "50")
+        val expirationRemindersEntries =
+            arrayOf<CharSequence>("1 hr", "2 hr", "3 hr", "4 hr", "5 hr", "6 hr", "7 hr", "8 hr", "9 hr", "10 hr", "11 hr", "12 hr", "13 hr", "14 hr", "15 hr", "16 hr", "17 hr", "18 hr", "19 hr", "20 hr", "21 hr", "22 hr", "23 hr", "24 hr")
+        val expirationRemindersValues = arrayOf<CharSequence>("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24")
+
+        val category = PreferenceCategory(context)
+        parent.addPreference(category)
+        category.apply {
             key = "carelevo_beeps"
             title = rh.gs(R.string.carelevo_preferences_category_confirmation_beeps)
             initialExpandedChildrenCount = 0
             addPreference(
-                AdaptiveSwitchPreference(
+                AdaptiveListIntPreference(
                     ctx = context,
-                    booleanKey = CarelevoBooleanPreferenceKey.CARELEVO_PATCH_EXPIRATION_REMINDER_ENABLED,
-                    title = R.string.carelevo_patch_expiration_reminders_title
+                    intKey = CarelevoIntPreferenceKey.CARELEVO_LOW_INSULIN_EXPIRATION_REMINDER_HOURS,
+                    title = R.string.carelevo_low_reservoir_reminders_title,
+                    entries = lowReservoirEntries,
+                    entryValues = lowReservoirValues
                 )
             )
-
             addPreference(
                 AdaptiveIntPreference(
                     ctx = context,
@@ -318,113 +331,105 @@ class CarelevoPumpPlugin @Inject constructor(
                     dialogMessage = R.string.carelevo_patch_expiration_reminders_message
                 )
             )
-
             addPreference(
                 AdaptiveSwitchPreference(
                     ctx = context,
-                    booleanKey = CarelevoBooleanPreferenceKey.CARELEVO_LOW_RESERVOIR_REMINDER_ENABLED,
-                    title = R.string.carelevo_low_reservoir_reminders_title
-                )
-            )
-
-            addPreference(
-                AdaptiveIntPreference(
-                    ctx = context,
-                    intKey = CarelevoIntPreferenceKey.CARELEVO_LOW_INSULIN_EXPIRATION_REMINDER_HOURS,
-                    title = R.string.carelevo_low_reservoir_reminders_title_value
+                    booleanKey = CarelevoBooleanPreferenceKey.CARELEVO_BUZZER_REMINDER,
+                    title = R.string.carelevo_patch_buzzer_alarm_title
                 )
             )
         }
-/*
-        val alertsCategory = PreferenceCategory(context)
-        parent.addPreference(alertsCategory)
-        alertsCategory.apply {
-            key = "omnipod_dash_alerts"
-            title = rh.gs(R.string.carelevo_preferences_category_alerts)
-            initialExpandedChildrenCount = 0
 
-            addPreference(
-                AdaptiveSwitchPreference(
-                    ctx = context,
-                    booleanKey = OmnipodBooleanPreferenceKey.ExpirationReminder,
-                    title = R.string.carelevo_preferences_expiration_reminder_enabled,
-                    summary = R.string.carelevo_preferences_expiration_reminder_enabled_summary
-                )
-            )
-            addPreference(
-                AdaptiveIntPreference(
-                    ctx = context,
-                    intKey = OmnipodIntPreferenceKey.ExpirationReminderHours,
-                    title = R.string.carelevo_preferences_expiration_reminder_hours_before_expiry
-                )
-            )
-            addPreference(
-                AdaptiveSwitchPreference(
-                    ctx = context,
-                    booleanKey = OmnipodBooleanPreferenceKey.ExpirationAlarm,
-                    title = R.string.carelevo_preferences_expiration_alarm_enabled,
-                    summary = R.string.carelevo_preferences_expiration_alarm_enabled_summary
-                )
-            )
-            addPreference(
-                AdaptiveIntPreference(
-                    ctx = context,
-                    intKey = OmnipodIntPreferenceKey.ExpirationAlarmHours,
-                    title = R.string.carelevo_preferences_expiration_alarm_hours_before_shutdown
-                )
-            )
-            addPreference(
-                AdaptiveSwitchPreference(
-                    ctx = context,
-                    booleanKey = OmnipodBooleanPreferenceKey.LowReservoirAlert,
-                    title = R.string.carelevo_preferences_low_reservoir_alert_enabled
-                )
-            )
-            addPreference(
-                AdaptiveIntPreference(
-                    ctx = context,
-                    intKey = OmnipodIntPreferenceKey.LowReservoirAlertUnits,
-                    title = R.string.carelevo_preferences_low_reservoir_alert_units
-                )
-            )
+        /*
+                val alertsCategory = PreferenceCategory(context)
+                parent.addPreference(alertsCategory)
+                alertsCategory.apply {
+                    key = "omnipod_dash_alerts"
+                    title = rh.gs(R.string.carelevo_preferences_category_alerts)
+                    initialExpandedChildrenCount = 0
 
-        }
-        val notificationsCategory = PreferenceCategory(context)
-        parent.addPreference(notificationsCategory)
-        notificationsCategory.apply {
-            key = "omnipod_dash_notifications"
-            title = rh.gs(R.string.carelevo_preferences_category_notifications)
-            initialExpandedChildrenCount = 0
+                    addPreference(
+                        AdaptiveSwitchPreference(
+                            ctx = context,
+                            booleanKey = OmnipodBooleanPreferenceKey.ExpirationReminder,
+                            title = R.string.carelevo_preferences_expiration_reminder_enabled,
+                            summary = R.string.carelevo_preferences_expiration_reminder_enabled_summary
+                        )
+                    )
+                    addPreference(
+                        AdaptiveIntPreference(
+                            ctx = context,
+                            intKey = OmnipodIntPreferenceKey.ExpirationReminderHours,
+                            title = R.string.carelevo_preferences_expiration_reminder_hours_before_expiry
+                        )
+                    )
+                    addPreference(
+                        AdaptiveSwitchPreference(
+                            ctx = context,
+                            booleanKey = OmnipodBooleanPreferenceKey.ExpirationAlarm,
+                            title = R.string.carelevo_preferences_expiration_alarm_enabled,
+                            summary = R.string.carelevo_preferences_expiration_alarm_enabled_summary
+                        )
+                    )
+                    addPreference(
+                        AdaptiveIntPreference(
+                            ctx = context,
+                            intKey = OmnipodIntPreferenceKey.ExpirationAlarmHours,
+                            title = R.string.carelevo_preferences_expiration_alarm_hours_before_shutdown
+                        )
+                    )
+                    addPreference(
+                        AdaptiveSwitchPreference(
+                            ctx = context,
+                            booleanKey = OmnipodBooleanPreferenceKey.LowReservoirAlert,
+                            title = R.string.carelevo_preferences_low_reservoir_alert_enabled
+                        )
+                    )
+                    addPreference(
+                        AdaptiveIntPreference(
+                            ctx = context,
+                            intKey = OmnipodIntPreferenceKey.LowReservoirAlertUnits,
+                            title = R.string.carelevo_preferences_low_reservoir_alert_units
+                        )
+                    )
 
-            addPreference(
-                AdaptiveSwitchPreference(
-                    ctx = context,
-                    booleanKey = OmnipodBooleanPreferenceKey.SoundUncertainTbrNotification,
-                    title = R.string.carelevo_preferences_notification_uncertain_tbr_sound_enabled
-                )
-            )
-            addPreference(
-                AdaptiveSwitchPreference(
-                    ctx = context,
-                    booleanKey = OmnipodBooleanPreferenceKey.SoundUncertainSmbNotification,
-                    title = R.string.carelevo_preferences_notification_uncertain_smb_sound_enabled
-                )
-            )
-            addPreference(
-                AdaptiveSwitchPreference(
-                    ctx = context,
-                    booleanKey = OmnipodBooleanPreferenceKey.SoundUncertainBolusNotification,
-                    title = R.string.carelevo_preferences_notification_uncertain_bolus_sound_enabled
-                )
-            )
-            addPreference(
-                AdaptiveSwitchPreference(
-                    ctx = context,
-                    booleanKey = DashBooleanPreferenceKey.SoundDeliverySuspendedNotification,
-                    title = app.aaps.pump.omnipod.dash.R.string.carelevo_preferences_notification_delivery_suspended_sound_enabled
-                )
-            )
-        }*/
+                }
+                val notificationsCategory = PreferenceCategory(context)
+                parent.addPreference(notificationsCategory)
+                notificationsCategory.apply {
+                    key = "omnipod_dash_notifications"
+                    title = rh.gs(R.string.carelevo_preferences_category_notifications)
+                    initialExpandedChildrenCount = 0
+
+                    addPreference(
+                        AdaptiveSwitchPreference(
+                            ctx = context,
+                            booleanKey = OmnipodBooleanPreferenceKey.SoundUncertainTbrNotification,
+                            title = R.string.carelevo_preferences_notification_uncertain_tbr_sound_enabled
+                        )
+                    )
+                    addPreference(
+                        AdaptiveSwitchPreference(
+                            ctx = context,
+                            booleanKey = OmnipodBooleanPreferenceKey.SoundUncertainSmbNotification,
+                            title = R.string.carelevo_preferences_notification_uncertain_smb_sound_enabled
+                        )
+                    )
+                    addPreference(
+                        AdaptiveSwitchPreference(
+                            ctx = context,
+                            booleanKey = OmnipodBooleanPreferenceKey.SoundUncertainBolusNotification,
+                            title = R.string.carelevo_preferences_notification_uncertain_bolus_sound_enabled
+                        )
+                    )
+                    addPreference(
+                        AdaptiveSwitchPreference(
+                            ctx = context,
+                            booleanKey = DashBooleanPreferenceKey.SoundDeliverySuspendedNotification,
+                            title = app.aaps.pump.omnipod.dash.R.string.carelevo_preferences_notification_delivery_suspended_sound_enabled
+                        )
+                    )
+                }*/
     }
 
     // 패치가 실제 연결 중 인지 확인
@@ -614,56 +619,56 @@ class CarelevoPumpPlugin @Inject constructor(
             .observeOn(aapsSchedulers.io)
             .subscribeOn(aapsSchedulers.io)
             .doOnSuccess { response ->
-            when (response) {
-                is ResponseResult.Success -> {
-                    val responseResult = response.data as StartImmeBolusInfusionResponseModel
-                    Log.d("plugin_test", "[CarelevoPumpPlugin::deliverTreatment] response success result : $responseResult")
-                    _lastDateTime = System.currentTimeMillis()
-                    // startImmeBolusTimer(detailedBolusInfo, responseResult.expectSec)
-                    val totalSec = responseResult.expectSec
-                    val tr = EventOverviewBolusProgress.Treatment(0.0, 0, detailedBolusInfo.bolusType == BS.Type.SMB, detailedBolusInfo.id)
-                    (0..totalSec).forEach {
-                        if (!isImmeBolusStop) {
-                            if (it == totalSec) {
-                                rxBus.send(EventOverviewBolusProgress.apply {
-                                    status = rh.gs(app.aaps.core.ui.R.string.bolus_delivered_successfully, detailedBolusInfo.insulin)
-                                    percent = 100
-                                })
-                                handleFinishImmeBolus()
+                when (response) {
+                    is ResponseResult.Success -> {
+                        val responseResult = response.data as StartImmeBolusInfusionResponseModel
+                        Log.d("plugin_test", "[CarelevoPumpPlugin::deliverTreatment] response success result : $responseResult")
+                        _lastDateTime = System.currentTimeMillis()
+                        // startImmeBolusTimer(detailedBolusInfo, responseResult.expectSec)
+                        val totalSec = responseResult.expectSec
+                        val tr = EventOverviewBolusProgress.Treatment(0.0, 0, detailedBolusInfo.bolusType == BS.Type.SMB, detailedBolusInfo.id)
+                        (0..totalSec).forEach {
+                            if (!isImmeBolusStop) {
+                                if (it == totalSec) {
+                                    rxBus.send(EventOverviewBolusProgress.apply {
+                                        status = rh.gs(app.aaps.core.ui.R.string.bolus_delivered_successfully, detailedBolusInfo.insulin)
+                                        percent = 100
+                                    })
+                                    handleFinishImmeBolus()
+                                } else {
+                                    // delay(1000)
+                                    SystemClock.sleep(1000)
+                                    val delivering = (detailedBolusInfo.insulin / totalSec) * it
+                                    rxBus.send(EventOverviewBolusProgress.apply {
+                                        status = rh.gs(app.aaps.core.ui.R.string.bolus_delivering, delivering)
+                                        percent = kotlin.math.min((delivering / detailedBolusInfo.insulin * 100).toInt(), 100)
+                                        t = tr
+                                    })
+                                }
                             } else {
-                                // delay(1000)
-                                SystemClock.sleep(1000)
-                                val delivering = (detailedBolusInfo.insulin / totalSec) * it
-                                rxBus.send(EventOverviewBolusProgress.apply {
-                                    status = rh.gs(app.aaps.core.ui.R.string.bolus_delivering, delivering)
-                                    percent = kotlin.math.min((delivering / detailedBolusInfo.insulin * 100).toInt(), 100)
-                                    t = tr
-                                })
+                                return@forEach
                             }
-                        } else {
-                            return@forEach
                         }
+                        result.success = true
+                        result.enacted = true
+                        result.bolusDelivered = detailedBolusInfo.insulin
                     }
-                    result.success = true
-                    result.enacted = true
-                    result.bolusDelivered = detailedBolusInfo.insulin
-                }
 
-                is ResponseResult.Error   -> {
-                    Log.d("plugin_test", "[CarelevoPumpPlugin::deliverTreatment] response error : ${response.e}")
-                }
+                    is ResponseResult.Error   -> {
+                        Log.d("plugin_test", "[CarelevoPumpPlugin::deliverTreatment] response error : ${response.e}")
+                    }
 
-                else                      -> {
-                    Log.d("plugin_test", "[CarlevoPumpPlugin::deliverTreatment] response failed")
+                    else                      -> {
+                        Log.d("plugin_test", "[CarlevoPumpPlugin::deliverTreatment] response failed")
+                    }
                 }
-            }
-        }.doOnError {
-            result.success = false
-            result.enacted = false
-            result.bolusDelivered = 0.0
-        }.map {
-            result
-        }.blockingGet()
+            }.doOnError {
+                result.success = false
+                result.enacted = false
+                result.bolusDelivered = 0.0
+            }.map {
+                result
+            }.blockingGet()
 
     }
 
@@ -1054,7 +1059,7 @@ class CarelevoPumpPlugin @Inject constructor(
     }
 
     private fun startReconnect() {
-        if(!carelevoPatch.isBluetoothEnabled()) {
+        if (!carelevoPatch.isBluetoothEnabled()) {
             return
         }
 
@@ -1064,11 +1069,12 @@ class CarelevoPumpPlugin @Inject constructor(
         reconnectDisposable += bleController.execute(Connect(address))
             .observeOn(aapsSchedulers.io)
             .subscribe { result ->
-                when(result) {
+                when (result) {
                     is CommandResult.Success -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::startReconnect] connect result is success")
                     }
-                    else -> {
+
+                    else                     -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::startReconnect] connect result is failed")
                         stopReconnect()
                     }
@@ -1084,14 +1090,14 @@ class CarelevoPumpPlugin @Inject constructor(
             }
             .subscribe { btState ->
                 btState.getOrNull()?.let { state ->
-                    if(state.shouldBeConnected()) {
+                    if (state.shouldBeConnected()) {
                         bleController.execute(DiscoveryService(address))
                             .blockingGet()
                             .takeIf { it !is CommandResult.Success }
                             ?.let { stopReconnect() }
                     }
 
-                    if(state.shouldBeDiscovered()) {
+                    if (state.shouldBeDiscovered()) {
                         bleController.execute(EnableNotifications(address, txUuid))
                             .blockingGet()
                             .takeIf { it !is CommandResult.Success }
@@ -1100,13 +1106,13 @@ class CarelevoPumpPlugin @Inject constructor(
                         reconnectDisposable.clear()
                         reconnectDisposable.dispose()
                     }
-                    if(state.isDiscoverCleared()) {
+                    if (state.isDiscoverCleared()) {
                         stopReconnect()
                     }
-                    if(state.isAbnormalBondingFailed()) {
+                    if (state.isAbnormalBondingFailed()) {
                         stopReconnect()
                     }
-                    if(state.isReInitialized()) {
+                    if (state.isReInitialized()) {
                         stopReconnect()
                     }
 

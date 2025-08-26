@@ -4,7 +4,7 @@ import info.nightscout.androidaps.plugins.pump.carelevo.data.model.ble.ProtocolS
 import info.nightscout.androidaps.plugins.pump.carelevo.data.protocol.parser.CarelevoProtocolParser
 
 class CarelevoProtocolSafetyCheckParserImpl(
-    override val command : Int
+    override val command: Int
 ) : CarelevoProtocolParser<ByteArray, ProtocolSafetyCheckRspModel> {
 
     override fun parse(data: ByteArray): ProtocolSafetyCheckRspModel {
@@ -15,11 +15,21 @@ class CarelevoProtocolSafetyCheckParserImpl(
         val remainsInteger = data[3].toUByte().toInt()
         val volume = remains100 + remainsInteger
 
+        val durationSeconds = if (data.size > 4) {
+            val min = data[4].toUByte().toInt()
+            val second = data[5].toUByte().toInt()
+
+            min * 60 + second
+        } else {
+            210
+        }
+
         return ProtocolSafetyCheckRspModel(
             timestamp,
             cmd,
             result,
-            volume
+            volume,
+            durationSeconds
         )
     }
 }

@@ -28,11 +28,11 @@ import kotlin.jvm.optionals.getOrNull
 
 class CarelevoConnectSafetyCheckViewModel @Inject constructor(
     private val aapsSchedulers: AapsSchedulers,
-    private val bleController : CarelevoBleController,
-    private val carelevoPatch : CarelevoPatch,
-    private val patchSafetyCheckUseCase : CarelevoPatchSafetyCheckUseCase,
-    private val patchDiscardUseCase : CarelevoPatchDiscardUseCase,
-    private val patchForceDiscardUseCase : CarelevoPatchForceDiscardUseCase
+    private val bleController: CarelevoBleController,
+    private val carelevoPatch: CarelevoPatch,
+    private val patchSafetyCheckUseCase: CarelevoPatchSafetyCheckUseCase,
+    private val patchDiscardUseCase: CarelevoPatchDiscardUseCase,
+    private val patchForceDiscardUseCase: CarelevoPatchForceDiscardUseCase
 ) : ViewModel() {
 
     private var _isCreated = false
@@ -46,71 +46,71 @@ class CarelevoConnectSafetyCheckViewModel @Inject constructor(
 
     private val compositeDisposable = CompositeDisposable()
 
-    fun setIsCreated(isCreated : Boolean) {
+    fun setIsCreated(isCreated: Boolean) {
         _isCreated = isCreated
     }
 
     fun triggerEvent(event: Event) {
         viewModelScope.launch {
-            when(event) {
+            when (event) {
                 is CarelevoConnectSafetyCheckEvent -> generateEventType(event).run { _event.emit(this) }
             }
         }
     }
 
-    private fun generateEventType(event : Event) : Event {
-        return when(event) {
-            is CarelevoConnectSafetyCheckEvent.ShowMessageBluetoothNotEnabled -> event
+    private fun generateEventType(event: Event): Event {
+        return when (event) {
+            is CarelevoConnectSafetyCheckEvent.ShowMessageBluetoothNotEnabled    -> event
             is CarelevoConnectSafetyCheckEvent.ShowMessageCarelevoIsNotConnected -> event
-            is CarelevoConnectSafetyCheckEvent.SafetyCheckComplete -> event
-            is CarelevoConnectSafetyCheckEvent.SafetyCheckFailed -> event
-            is CarelevoConnectSafetyCheckEvent.DiscardComplete -> event
-            is CarelevoConnectSafetyCheckEvent.DiscardFailed -> event
-            else -> CarelevoConnectSafetyCheckEvent.NoAction
+            is CarelevoConnectSafetyCheckEvent.SafetyCheckComplete               -> event
+            is CarelevoConnectSafetyCheckEvent.SafetyCheckFailed                 -> event
+            is CarelevoConnectSafetyCheckEvent.DiscardComplete                   -> event
+            is CarelevoConnectSafetyCheckEvent.DiscardFailed                     -> event
+            else                                                                 -> CarelevoConnectSafetyCheckEvent.NoAction
         }
     }
 
-    private fun setUiState(state : State) {
+    private fun setUiState(state: State) {
         viewModelScope.launch {
             _uiState.tryEmit(state)
         }
     }
 
     fun startSafetyCheck() {
-        if(!carelevoPatch.isBluetoothEnabled()) {
+        if (!carelevoPatch.isBluetoothEnabled()) {
             triggerEvent(CarelevoConnectSafetyCheckEvent.ShowMessageBluetoothNotEnabled)
             return
         }
 
-        if(!carelevoPatch.isCarelevoConnected()) {
+        if (!carelevoPatch.isCarelevoConnected()) {
             triggerEvent(CarelevoConnectSafetyCheckEvent.ShowMessageCarelevoIsNotConnected)
             return
         }
 
         setUiState(UiState.Loading)
         compositeDisposable += patchSafetyCheckUseCase.execute()
-            .timeout(240000L, TimeUnit.MILLISECONDS)
             .observeOn(aapsSchedulers.io)
             .subscribeOn(aapsSchedulers.io)
             .doOnError {
-                setUiState(UiState.Idle)
                 triggerEvent(CarelevoConnectSafetyCheckEvent.SafetyCheckFailed)
             }
+            .doFinally {
+                setUiState(UiState.Idle)
+            }
             .subscribe { response ->
-                when(response) {
+                when (response) {
                     is ResponseResult.Success -> {
                         Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::startSafetyCheck] response success")
-                        setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectSafetyCheckEvent.SafetyCheckComplete)
                     }
-                    is ResponseResult.Error -> {
-                        Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::startSafetyCheck] response error : ${response.e}")
-                        setUiState(UiState.Idle)
+
+                    is ResponseResult.Failure -> {
+                        Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::startSafetyCheck] response failed")
                         triggerEvent(CarelevoConnectSafetyCheckEvent.SafetyCheckFailed)
                     }
-                    else -> {
-                        Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::startSafetyCheck] response failed")
-                        setUiState(UiState.Idle)
+
+                    is ResponseResult.Error   -> {
+                        Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::startSafetyCheck] response error : ${response.e}")
                         triggerEvent(CarelevoConnectSafetyCheckEvent.SafetyCheckFailed)
                     }
                 }
@@ -118,14 +118,16 @@ class CarelevoConnectSafetyCheckViewModel @Inject constructor(
     }
 
     fun startDiscardProcess() {
-        when(carelevoPatch.patchState.value?.getOrNull()) {
-            is PatchState.ConnectedBooted -> {
+        when (carelevoPatch.patchState.value?.getOrNull()) {
+            is PatchState.ConnectedBooted              -> {
                 startDiscard()
             }
+
             is PatchState.NotConnectedNotBooting, null -> {
                 triggerEvent(CarelevoConnectSafetyCheckEvent.DiscardComplete)
             }
-            else -> {
+
+            else                                       -> {
                 startForceDiscard()
             }
         }
@@ -143,7 +145,7 @@ class CarelevoConnectSafetyCheckViewModel @Inject constructor(
                 setUiState(UiState.Idle)
                 triggerEvent(CarelevoConnectSafetyCheckEvent.DiscardFailed)
             }.subscribe { response ->
-                when(response) {
+                when (response) {
                     is ResponseResult.Success -> {
                         Log.d("connect_test", "[CarelevoSafetyCheckViewModel::startDiscard] response success")
                         bleController.unBondDevice()
@@ -151,12 +153,14 @@ class CarelevoConnectSafetyCheckViewModel @Inject constructor(
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectSafetyCheckEvent.DiscardComplete)
                     }
-                    is ResponseResult.Error -> {
+
+                    is ResponseResult.Error   -> {
                         Log.d("connect_test", "[CarelevoSafetyCheckViewModel::startDiscard] response error : ${response.e}")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectSafetyCheckEvent.DiscardFailed)
                     }
-                    else -> {
+
+                    else                      -> {
                         Log.d("connect_test", "[CarelevoSafetyCheckViewModel::startDiscard] response failed")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectSafetyCheckEvent.DiscardFailed)
@@ -176,7 +180,7 @@ class CarelevoConnectSafetyCheckViewModel @Inject constructor(
                 setUiState(UiState.Idle)
                 triggerEvent(CarelevoConnectSafetyCheckEvent.DiscardFailed)
             }.subscribe { response ->
-                when(response) {
+                when (response) {
                     is ResponseResult.Success -> {
                         Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::startForceDiscard] response success")
                         bleController.unBondDevice()
@@ -184,12 +188,14 @@ class CarelevoConnectSafetyCheckViewModel @Inject constructor(
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectSafetyCheckEvent.DiscardComplete)
                     }
-                    is ResponseResult.Error -> {
+
+                    is ResponseResult.Error   -> {
                         Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::startForceDiscard] response error : ${response.e}")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectSafetyCheckEvent.DiscardFailed)
                     }
-                    else -> {
+
+                    else                      -> {
                         Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::startFoeceDiscard] response failed")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectSafetyCheckEvent.DiscardFailed)

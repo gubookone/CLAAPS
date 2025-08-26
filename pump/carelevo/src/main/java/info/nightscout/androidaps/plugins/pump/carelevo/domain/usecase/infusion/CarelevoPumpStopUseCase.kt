@@ -10,7 +10,7 @@ import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.result.Resu
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.CarelevoInfusionInfoRepository
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.CarelevoPatchInfoRepository
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.CarelevoPatchRepository
-import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.CarelevoUseCaseRequset
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.CarelevoUseCaseRequest
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.CarelevoUseCaseResponse
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.infusion.model.CarelevoPumpStopRequestModel
 import io.reactivex.rxjava3.core.Single
@@ -20,16 +20,16 @@ import org.joda.time.DateTime
 import javax.inject.Inject
 
 class CarelevoPumpStopUseCase @Inject constructor(
-    private val patchObserver : CarelevoPatchObserver,
-    private val patchRepository : CarelevoPatchRepository,
-    private val patchInfoRepository : CarelevoPatchInfoRepository,
-    private val infusionInfoRepository : CarelevoInfusionInfoRepository
+    private val patchObserver: CarelevoPatchObserver,
+    private val patchRepository: CarelevoPatchRepository,
+    private val patchInfoRepository: CarelevoPatchInfoRepository,
+    private val infusionInfoRepository: CarelevoInfusionInfoRepository
 ) {
 
-    fun execute(request : CarelevoUseCaseRequset) : Single<ResponseResult<CarelevoUseCaseResponse>> {
+    fun execute(request: CarelevoUseCaseRequest): Single<ResponseResult<CarelevoUseCaseResponse>> {
         return Single.fromCallable {
             runCatching {
-                if(request !is CarelevoPumpStopRequestModel) {
+                if (request !is CarelevoPumpStopRequestModel) {
                     throw IllegalArgumentException("request is not CarelevoPumpStopRequestModel")
                 }
 
@@ -42,7 +42,7 @@ class CarelevoPumpStopUseCase @Inject constructor(
                     .ofType<StopPumpResultModel>()
                     .blockingFirst()
 
-                if(requestStopPumpResult.result != Result.SUCCESS) {
+                if (requestStopPumpResult.result != Result.SUCCESS) {
                     throw IllegalStateException("request stop pump result is failed")
                 }
 
@@ -54,7 +54,7 @@ class CarelevoPumpStopUseCase @Inject constructor(
                 val updateInfusionInfoResult = infusionInfoRepository.updateBasalInfusionInfo(
                     basalInfusionInfo.copy(updatedAt = DateTime.now(), mode = 0, isStop = true)
                 )
-                if(!updateInfusionInfoResult) {
+                if (!updateInfusionInfoResult) {
                     throw IllegalStateException("update infusion info is failed")
                 }
 
@@ -65,7 +65,7 @@ class CarelevoPumpStopUseCase @Inject constructor(
                     patchInfo.copy(updatedAt = DateTime.now(), isStopped = true, stopMinutes = request.durationMin, stopMode = 0, isForceStopped = false, mode = 0)
                 )
 
-                if(!updatePatchInfoResult) {
+                if (!updatePatchInfoResult) {
                     throw IllegalStateException("update patch info is failed")
                 }
                 ResultSuccess

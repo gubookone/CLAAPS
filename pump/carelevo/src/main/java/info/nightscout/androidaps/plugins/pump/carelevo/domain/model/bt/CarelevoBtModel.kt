@@ -14,91 +14,92 @@ import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.bt.WarningM
 
 internal interface PatchResultModel
 
-data class ProtocolFailedAlarmMode(val alarmId : Long, val cause : Int) : PatchResultModel
+data class ProtocolFailedAlarmMode(val alarmId: Long, val cause: Int) : PatchResultModel
 
 data class SetTimeResultModel(
-    val result : Result
+    val result: Result
 ) : PatchResultModel
 
 data class SafetyCheckResultModel(
-    val result : SafetyCheckResult,
-    val volume : Int
+    val result: SafetyCheckResult,
+    val volume: Int,
+    val durationSeconds: Int
 ) : PatchResultModel
 
 data class AdditionalPrimingResultModel(
-    val result : Result
+    val result: Result
 ) : PatchResultModel
 
 data class SetThresholdNoticeResultModel(
-    val type : Int,
-    val result : Result
+    val type: Int,
+    val result: Result
 ) : PatchResultModel
 
 data class SetInfusionThresholdResultModel(
-    val result : Result,
-    val type : Int
+    val result: Result,
+    val type: Int
 ) : PatchResultModel
 
 data class SetBuzzModeResultModel(
-    val result : Result
+    val result: Result
 ) : PatchResultModel
 
 data class SetAlarmClearResultModel(
-    val result : Result,
-    val subId : Int,
-    val cause : Int
+    val result: Result,
+    val subId: Int,
+    val cause: Int
 ) : PatchResultModel
 
 data class CannulaInsertionResultModel(
-    val result : Result
+    val result: Result
 ) : PatchResultModel
 
 data class CannulaInsertionAckResultModel(
-    val result : Result
+    val result: Result
 ) : PatchResultModel
 
 data class ThresholdSetResultModel(
-    val result : Result
+    val result: Result
 ) : PatchResultModel
 
 data class ExtendPatchExpiryResultModel(
-    val result : Result
+    val result: Result
 ) : PatchResultModel
 
 data class StopPumpResultModel(
-    val result : Result
+    val result: Result
 ) : PatchResultModel
 
 data class ResumePumpResultModel(
-    val result : StopPumpResult,
-    val mode : InfusionModeResult,
-    val subId : Int
+    val result: StopPumpResult,
+    val mode: InfusionModeResult,
+    val subId: Int
 ) : PatchResultModel
 
 data class StopPumpReportResultModel(
-    val result : StopPumpResult,
-    val mode : InfusionModeResult,
-    val subId : Int,
-    val infusedBolusInfusionAmount : Double,
-    val infusedBasalInfusionAmount : Double,
-    val temperature : Int
+    val result: StopPumpResult,
+    val mode: InfusionModeResult,
+    val subId: Int,
+    val infusedBolusInfusionAmount: Double,
+    val infusedBasalInfusionAmount: Double,
+    val temperature: Int
 ) : PatchResultModel
 
 data class InfusionInfoReportResultModel(
-    val subId : InfusionInfoResult,
-    val runningMinutes : Int,
-    val remains : Double,
-    val infusedTotalBasalAmount : Double,
-    val infusedTotalBolusAmount : Double,
-    val pumpState : PumpStateResult,
-    val mode : InfusionModeResult,
-    val infuseSetMinutes : Int,
-    val currentInfusedProgramVolume : Double,
-    val realInfusedTime : Int
+    val subId: InfusionInfoResult,
+    val runningMinutes: Int,
+    val remains: Double,
+    val infusedTotalBasalAmount: Double,
+    val infusedTotalBolusAmount: Double,
+    val pumpState: PumpStateResult,
+    val mode: InfusionModeResult,
+    val infuseSetMinutes: Int,
+    val currentInfusedProgramVolume: Double,
+    val realInfusedTime: Int
 ) : PatchResultModel
 
 data class PatchInformationInquiryModel(
-    val result : Result,
+    val result: Result,
     // val productCL : String,
     // val productTY : String,
     // val productMO : String,
@@ -108,77 +109,77 @@ data class PatchInformationInquiryModel(
     // val manufactureDA : String,
     // val manufactureLO : String,
     // val manufactureNO : String,
-    val serialNum : String
+    val serialNum: String
 ) : PatchResultModel
 
 data class PatchInformationInquiryDetailModel(
-    val result : Result,
-    val firmwareVer : String,
-    val bootDateTime : String,
-    val modelName : String
+    val result: Result,
+    val firmwareVer: String,
+    val bootDateTime: String,
+    val modelName: String
 ) : PatchResultModel
 
 data class DiscardPatchResultModel(
-    val result : Result
+    val result: Result
 ) : PatchResultModel
 
 data class CheckBuzzResultModel(
-    val result : Result
+    val result: Result
 ) : PatchResultModel
 
 data class FinishPulseReportResultModel(
-    val mode : InfusionModeResult,
-    val pulseCnt : Int,
-    val totalNo : Int,
-    val count : Int,
-    val useMinutes : Int,
-    val remains : Double
+    val mode: InfusionModeResult,
+    val pulseCnt: Int,
+    val totalNo: Int,
+    val count: Int,
+    val useMinutes: Int,
+    val remains: Double
 ) : PatchResultModel
 
 data class SetApplicationStatusResultModel(
-    val status : Int
+    val status: Int
 ) : PatchResultModel
 
 data class RetrieveAddressResultModel(
     // val value : Int,
-    val address : String,
-    val checkSum : String
+    val address: String,
+    val checkSum: String
 ) : PatchResultModel
 
 class RecoveryPatchReportResultModel() : PatchResultModel
 
 data class WarningReportResultModel(
-    val cause : WarningMessageResult,
-    val value : Int
+    val cause: WarningMessageResult,
+    val value: Int
 ) : PatchResultModel
 
 data class AlertReportResultModel(
-    val cause : AlertMessageResult,
-    val value : Int
+    val cause: AlertMessageResult,
+    val value: Int
 ) : PatchResultModel
 
 data class NoticeReportResultModel(
-    val cause : NoticeMessageResult,
-    val value : Int
+    val cause: NoticeMessageResult,
+    val value: Int
 ) : PatchResultModel
 
 data class AppAuthAckReportResultModel(
-    val value : Int
+    val value: Int
 ) : PatchResultModel
 
 data class AlertAlarmSetResultModel(
-    val result : Result
+    val result: Result
 ) : PatchResultModel
 
 data class AppAuthAckResultModel(
-    val result : Result
+    val result: Result
 ) : PatchResultModel
 
-internal fun createPatchResultModel(response : BtResponse) : PatchResultModel? {
-    return if(isPatchProtocol(response.command) && response is SetTimeResponse) {
+internal fun createPatchResultModel(response: BtResponse): PatchResultModel? {
+    return if (isPatchProtocol(response.command) && response is SetTimeResponse) {
         val value = response.result.codeToResultCommand()
         SetTimeResultModel(value)
-    } else if(isPatchProtocol(response.command) && response is PatchInformationInquiryResponse) {
+    } else if (isPatchProtocol(response.command) && response is PatchInformationInquiryResponse) {
         val value = response.result.codeToResultCommand()
         PatchInformationInquiryModel(
             value,
@@ -193,41 +194,41 @@ internal fun createPatchResultModel(response : BtResponse) : PatchResultModel? {
             // response.manufactureNO
             response.serialNum
         )
-    } else if(isPatchProtocol(response.command) && response is PatchInformationInquiryDetailResponse) {
+    } else if (isPatchProtocol(response.command) && response is PatchInformationInquiryDetailResponse) {
         val value = response.result.codeToResultCommand()
         PatchInformationInquiryDetailModel(value, response.firmVersion, response.bootDateTime, response.modelName)
-    } else if(isPatchProtocol(response.command) && response is SafetyCheckResponse) {
+    } else if (isPatchProtocol(response.command) && response is SafetyCheckResponse) {
         val value = response.result.codeToSafetyCheckCommand()
-        SafetyCheckResultModel(value, response.volume)
-    } else if(isPatchProtocol(response.command) && response is ThresholdSetResponse) {
+        SafetyCheckResultModel(value, response.volume, response.durationSeconds)
+    } else if (isPatchProtocol(response.command) && response is ThresholdSetResponse) {
         val value = response.result.codeToResultCommand()
         ThresholdSetResultModel(value)
-    } else if(isPatchProtocol(response.command) && response is CannulaInsertionResponse) {
+    } else if (isPatchProtocol(response.command) && response is CannulaInsertionResponse) {
         val value = response.result.codeToResultCommand()
         CannulaInsertionResultModel(value)
-    } else if(isPatchProtocol(response.command) && response is CannulaInsertionAckResponse) {
+    } else if (isPatchProtocol(response.command) && response is CannulaInsertionAckResponse) {
         val value = response.result.codeToResultCommand()
         CannulaInsertionAckResultModel(value)
-    } else if(isPatchProtocol(response.command) && response is SetInfusionThresholdResponse) {
+    } else if (isPatchProtocol(response.command) && response is SetInfusionThresholdResponse) {
         val value = response.result.codeToResultCommand()
         SetInfusionThresholdResultModel(value, response.type)
-    } else if(isPatchProtocol(response.command) && response is SetBuzzModeResponse) {
+    } else if (isPatchProtocol(response.command) && response is SetBuzzModeResponse) {
         val value = response.result.codeToResultCommand()
         SetBuzzModeResultModel(value)
-    } else if(isPatchProtocol(response.command) && response is ClearReportResponse) {
+    } else if (isPatchProtocol(response.command) && response is ClearReportResponse) {
         val value = response.result.codeToResultCommand()
         SetAlarmClearResultModel(value, response.subId, response.cause)
-    } else if(isPatchProtocol(response.command) && response is SetExpiryExtendResponse) {
+    } else if (isPatchProtocol(response.command) && response is SetExpiryExtendResponse) {
         val value = response.result.codeToResultCommand()
         ExtendPatchExpiryResultModel(value)
-    } else if(isPatchProtocol(response.command) && response is StopPumpResponse) {
+    } else if (isPatchProtocol(response.command) && response is StopPumpResponse) {
         val value = response.result.codeToResultCommand()
         StopPumpResultModel(value)
-    } else if(isPatchProtocol(response.command) && response is ResumePumpResponse) {
+    } else if (isPatchProtocol(response.command) && response is ResumePumpResponse) {
         val value = response.result.codeToStopPumpCommand()
         val mode = response.mode.codeToInfusionModeCommand()
         ResumePumpResultModel(value, mode, response.causeId)
-    } else if(isPatchProtocol(response.command) && response is StopPumpReportResponse) {
+    } else if (isPatchProtocol(response.command) && response is StopPumpReportResponse) {
         val value = response.result.codeToStopPumpCommand()
         val mode = response.mode.codeToInfusionModeCommand()
         StopPumpReportResultModel(
@@ -238,7 +239,7 @@ internal fun createPatchResultModel(response : BtResponse) : PatchResultModel? {
             response.unInfusedExtendBolusAmount,
             response.temperature
         )
-    } else if(isPatchProtocol(response.command) && response is RetrieveInfusionStatusResponse) {
+    } else if (isPatchProtocol(response.command) && response is RetrieveInfusionStatusResponse) {
         val subId = response.subId.codeToInfusionInfoCommand()
         val pumpState = response.pumpState.codeToPumpStateCommand()
         val mode = response.mode.codeToInfusionModeCommand()
@@ -254,46 +255,46 @@ internal fun createPatchResultModel(response : BtResponse) : PatchResultModel? {
             response.currentInfusedProgramVolume,
             response.realInfusedTime
         )
-    } else if(isPatchProtocol(response.command) && response is SetApplicationStatusResponse) {
+    } else if (isPatchProtocol(response.command) && response is SetApplicationStatusResponse) {
         SetApplicationStatusResultModel(response.status)
-    } else if(isPatchProtocol(response.command) && response is RetrieveAddressResponse) {
+    } else if (isPatchProtocol(response.command) && response is RetrieveAddressResponse) {
         RetrieveAddressResultModel(
             // response.value,
             response.address,
             response.checkSum
         )
-    } else if(isPatchProtocol(response.command) && response is SetDiscardResponse) {
+    } else if (isPatchProtocol(response.command) && response is SetDiscardResponse) {
         val value = response.result.codeToResultCommand()
         DiscardPatchResultModel(value)
-    } else if(isPatchProtocol(response.command) && response is RecoveryPatchResponse) {
+    } else if (isPatchProtocol(response.command) && response is RecoveryPatchResponse) {
         RecoveryPatchReportResultModel()
-    } else if(isPatchProtocol(response.command) && response is WarningReportResponse) {
+    } else if (isPatchProtocol(response.command) && response is WarningReportResponse) {
         WarningReportResultModel(
             response.cause.codeToWarningMessageCommand(),
             response.value
         )
-    } else if(isPatchProtocol(response.command) && response is AlertReportResponse) {
+    } else if (isPatchProtocol(response.command) && response is AlertReportResponse) {
         AlertReportResultModel(
             response.cause.codeToAlertMessageCommand(),
             response.value
         )
-    } else if(isPatchProtocol(response.command) && response is NoticeReportResponse) {
+    } else if (isPatchProtocol(response.command) && response is NoticeReportResponse) {
         NoticeReportResultModel(
             response.cause.codeToNoticeMessageCommand(),
             response.value
         )
-    } else if(isPatchProtocol(response.command) && response is AppAuthRptResponse) {
+    } else if (isPatchProtocol(response.command) && response is AppAuthRptResponse) {
         AppAuthAckReportResultModel(response.value)
-    } else if(isPatchProtocol(response.command) && response is AdditionalPrimingResponse) {
+    } else if (isPatchProtocol(response.command) && response is AdditionalPrimingResponse) {
         AdditionalPrimingResultModel(response.result.codeToResultCommand())
-    } else if(isPatchProtocol(response.command) && response is SetThresholdNoticeResponse) {
+    } else if (isPatchProtocol(response.command) && response is SetThresholdNoticeResponse) {
         SetThresholdNoticeResultModel(
             response.type,
             response.result.codeToResultCommand()
         )
-    } else if(isPatchProtocol(response.command) && response is SetAlertAlarmModelResponse) {
+    } else if (isPatchProtocol(response.command) && response is SetAlertAlarmModelResponse) {
         AlertAlarmSetResultModel(response.result.codeToResultCommand())
-    } else if(isPatchProtocol(response.command) && response is AppAuthAckRptResponse) {
+    } else if (isPatchProtocol(response.command) && response is AppAuthAckRptResponse) {
         AppAuthAckResultModel(response.result.codeToResultCommand())
     } else {
         null
@@ -301,60 +302,60 @@ internal fun createPatchResultModel(response : BtResponse) : PatchResultModel? {
 }
 
 data class SetBasalProgramResultModel(
-    val result : SetBasalProgramResult
+    val result: SetBasalProgramResult
 ) : PatchResultModel
 
 data class SetBasalProgramAdditionalResultModel(
-    val result : SetBasalProgramResult
+    val result: SetBasalProgramResult
 ) : PatchResultModel
 
 data class UpdateBasalProgramResultModel(
-    val result : SetBasalProgramResult
+    val result: SetBasalProgramResult
 ) : PatchResultModel
 
 data class UpdateBasalProgramAdditionalResultModel(
-    val result : SetBasalProgramResult
+    val result: SetBasalProgramResult
 ) : PatchResultModel
 
 data class StartTempBasalProgramResultModel(
-    val result : SetBasalProgramResult
+    val result: SetBasalProgramResult
 ) : PatchResultModel
 
 data class CancelTempBasalProgramResultModel(
-    val result : Result
+    val result: Result
 ) : PatchResultModel
 
 class StartBasalProgramResultModel() : PatchResultModel
 
 data class BasalInfusionResumeResultModel(
-    val segmentNo : Int,
-    val infusionSpeed : Double,
-    val infusionPeriod : Int,
-    val insulinRemains : Double
+    val segmentNo: Int,
+    val infusionSpeed: Double,
+    val infusionPeriod: Int,
+    val insulinRemains: Double
 ) : PatchResultModel
 
-internal fun createBasalResultModel(response : BtResponse) : PatchResultModel? {
-    return if(isBasalProtocol(response.command) && response is SetBasalProgramResponse) {
+internal fun createBasalResultModel(response: BtResponse): PatchResultModel? {
+    return if (isBasalProtocol(response.command) && response is SetBasalProgramResponse) {
         val value = response.result.codeToSetBasalProgramCommand()
         SetBasalProgramResultModel(value)
-    } else if(isBasalProtocol(response.command) && response is SetBasalProgramAdditionalResponse) {
+    } else if (isBasalProtocol(response.command) && response is SetBasalProgramAdditionalResponse) {
         val value = response.result.codeToSetBasalProgramCommand()
         SetBasalProgramAdditionalResultModel(value)
-    } else if(isBasalProtocol(response.command) && response is UpdateBasalProgramResponse) {
+    } else if (isBasalProtocol(response.command) && response is UpdateBasalProgramResponse) {
         val value = response.result.codeToSetBasalProgramCommand()
         UpdateBasalProgramResultModel(value)
-    } else if(isBasalProtocol(response.command) && response is UpdateBasalProgramAdditionalResponse) {
+    } else if (isBasalProtocol(response.command) && response is UpdateBasalProgramAdditionalResponse) {
         val value = response.result.codeToSetBasalProgramCommand()
         UpdateBasalProgramAdditionalResultModel(value)
-    } else if(isBasalProtocol(response.command) && response is StartTempBasalProgramResponse) {
+    } else if (isBasalProtocol(response.command) && response is StartTempBasalProgramResponse) {
         val value = response.result.codeToSetBasalProgramCommand()
         StartTempBasalProgramResultModel(value)
-    } else if(isBasalProtocol(response.command) && response is CancelTempBasalProgramResponse) {
+    } else if (isBasalProtocol(response.command) && response is CancelTempBasalProgramResponse) {
         val value = response.result.codeToResultCommand()
         CancelTempBasalProgramResultModel(value)
-    } else if(isBasalProtocol(response.command) && response is StartBasalProgramResponse) {
+    } else if (isBasalProtocol(response.command) && response is StartBasalProgramResponse) {
         StartBasalProgramResultModel()
-    } else if(isBasalProtocol(response.command) && response is ResumeBasalProgramResponse) {
+    } else if (isBasalProtocol(response.command) && response is ResumeBasalProgramResponse) {
         BasalInfusionResumeResultModel(
             response.segmentNo,
             response.infusionSpeed,
@@ -367,35 +368,35 @@ internal fun createBasalResultModel(response : BtResponse) : PatchResultModel? {
 }
 
 data class StartImmeBolusResultModel(
-    val result : SetBolusProgramResult,
-    val actionId : Int,
-    val expectedTime : Int,
-    val remains : Double
+    val result: SetBolusProgramResult,
+    val actionId: Int,
+    val expectedTime: Int,
+    val remains: Double
 ) : PatchResultModel
 
 data class CancelImmeBolusResultModel(
-    val result : Result,
-    val remains : Double,
-    val infusedAmount : Double
+    val result: Result,
+    val remains: Double,
+    val infusedAmount: Double
 ) : PatchResultModel
 
 data class StartExtendBolusResultModel(
-    val result : SetBolusProgramResult,
-    val expectedTime : Int
+    val result: SetBolusProgramResult,
+    val expectedTime: Int
 ) : PatchResultModel
 
 data class CancelExtendBolusResultModel(
-    val result : Result,
-    val infusedAmount : Double
+    val result: Result,
+    val infusedAmount: Double
 ) : PatchResultModel
 
 data class DelayExtendBolusReportResultModel(
-    val delayedAmount : Double,
-    val expectedTime : Int
+    val delayedAmount: Double,
+    val expectedTime: Int
 ) : PatchResultModel
 
-internal fun createBolusResultModel(response : BtResponse) : PatchResultModel? {
-    return if(isBolusProtocol(response.command) && response is StartImmeBolusResponse) {
+internal fun createBolusResultModel(response: BtResponse): PatchResultModel? {
+    return if (isBolusProtocol(response.command) && response is StartImmeBolusResponse) {
         val value = response.result.codeToSetBolusProgramCommand()
         StartImmeBolusResultModel(
             value,
@@ -403,26 +404,26 @@ internal fun createBolusResultModel(response : BtResponse) : PatchResultModel? {
             response.expectedTime,
             response.remain
         )
-    } else if(isBolusProtocol(response.command) && response is CancelImmeBolusResponse) {
+    } else if (isBolusProtocol(response.command) && response is CancelImmeBolusResponse) {
         val value = response.result.codeToResultCommand()
         CancelImmeBolusResultModel(
             value,
             response.remains,
             response.infusedAmount
         )
-    } else if(isBolusProtocol(response.command) && response is StartExtendBolusResponse) {
+    } else if (isBolusProtocol(response.command) && response is StartExtendBolusResponse) {
         val value = response.result.codeToSetBolusProgramCommand()
         StartExtendBolusResultModel(
             value,
             response.expectedTime
         )
-    } else if(isBolusProtocol(response.command) && response is CancelExtendBolusResponse) {
+    } else if (isBolusProtocol(response.command) && response is CancelExtendBolusResponse) {
         val value = response.result.codeToResultCommand()
         CancelExtendBolusResultModel(
             value,
             response.infusedAmount
         )
-    } else if(isBolusProtocol(response.command) && response is DelayExtendBolusResponse) {
+    } else if (isBolusProtocol(response.command) && response is DelayExtendBolusResponse) {
         DelayExtendBolusReportResultModel(
             response.delayedAmount,
             response.expectedTime

@@ -11,18 +11,18 @@ import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.Carele
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.CarelevoPatchRepository
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.CarelevoUseCaseResponse
 import io.reactivex.rxjava3.core.Single
-import io.reactivex.rxjava3.kotlin.ofType
 import io.reactivex.rxjava3.schedulers.Schedulers
 import org.joda.time.DateTime
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 class CarelevoPatchSafetyCheckUseCase @Inject constructor(
-    private val patchObserver : CarelevoPatchObserver,
-    private val patchRepository : CarelevoPatchRepository,
-    private val patchInfoRepository : CarelevoPatchInfoRepository
+    private val patchObserver: CarelevoPatchObserver,
+    private val patchRepository: CarelevoPatchRepository,
+    private val patchInfoRepository: CarelevoPatchInfoRepository
 ) {
 
-    fun execute() : Single<ResponseResult<CarelevoUseCaseResponse>> {
+    /*fun execute() : Single<ResponseResult<CarelevoUseCaseResponse>> {
         return Single.fromCallable {
             runCatching {
                 patchRepository.requestSafetyCheck()
@@ -75,5 +75,55 @@ class CarelevoPatchSafetyCheckUseCase @Inject constructor(
                 }
             )
         }.subscribeOn(Schedulers.io())
+    }*/
+    fun execute(): Single<ResponseResult<CarelevoUseCaseResponse>> {
+        return patchRepository.requestSafetyCheck()
+            .subscribeOn(Schedulers.io())
+            .flatMap { req ->
+                if (req !is RequestResult.Pending) {
+                    return@flatMap Single.error(IllegalStateException("request safety check is not pending"))
+                }
+
+                Log.d("connect_test", "[UseCase] 1. 안전점검 요청 보냄")
+
+                // 1) REQ/REQ1 기다리기 (짧은 기본 타임아웃)
+                val requestReplySingle = patchObserver.patchEvent
+                    .ofType(SafetyCheckResultModel::class.java)
+                    .filter { it.result == SafetyCheckResult.REP_REQUEST || it.result == SafetyCheckResult.REP_REQUEST1 }
+                    .firstOrError()
+                    .timeout(30, TimeUnit.SECONDS) // 첫 응답은 보통 빨리 옴(필요 시 조정)
+
+                requestReplySingle.flatMap { requestReply ->
+                    Log.d("connect_test", "[UseCase] 2. 요청 결과 수신: $requestReply, ${requestReply.durationSeconds}")
+
+                    val timeoutSec = (requestReply.durationSeconds + 30).toLong()
+                    Log.d("connect_test", "[UseCase] ACK 타임아웃: ${timeoutSec}s")
+
+                    // 2) ACK(SUCCESS) 기다리기 - durationSeconds 만큼
+                    patchObserver.patchEvent
+                        .ofType(SafetyCheckResultModel::class.java)
+                        .filter { it.result == SafetyCheckResult.SUCCESS }
+                        .firstOrError()
+                        .timeout(timeoutSec, TimeUnit.SECONDS)
+                }
+            }
+            .flatMap {
+                Log.d("connect_test", "[UseCase] 3. ACK 수신: $it")
+
+                val patchInfo = patchInfoRepository.getPatchInfoBySync()
+                    ?: return@flatMap Single.error(NullPointerException("patch info must be not null"))
+
+                val ok = patchInfoRepository.updatePatchInfo(
+                    patchInfo.copy(checkSafety = true, updatedAt = DateTime.now())
+                )
+                if (!ok) return@flatMap Single.error(IllegalStateException("update patch info is failed"))
+
+                Single.just<ResponseResult<CarelevoUseCaseResponse>>(
+                    ResponseResult.Success(ResultSuccess as CarelevoUseCaseResponse)
+                )
+            }
+            .onErrorReturn { e ->
+                ResponseResult.Error(e)
+            }
     }
 }

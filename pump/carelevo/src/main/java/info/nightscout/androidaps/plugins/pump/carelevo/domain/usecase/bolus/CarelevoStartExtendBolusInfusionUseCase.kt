@@ -12,7 +12,7 @@ import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.result.Resu
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.CarelevoBolusRepository
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.CarelevoInfusionInfoRepository
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.CarelevoPatchInfoRepository
-import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.CarelevoUseCaseRequset
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.CarelevoUseCaseRequest
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.CarelevoUseCaseResponse
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.bolus.model.StartExtendBolusInfusionRequestModel
 import io.reactivex.rxjava3.core.Single
@@ -22,16 +22,16 @@ import org.joda.time.DateTime
 import javax.inject.Inject
 
 class CarelevoStartExtendBolusInfusionUseCase @Inject constructor(
-    private val patchObserver : CarelevoPatchObserver,
-    private val bolusRepository : CarelevoBolusRepository,
-    private val patchInfoRepository : CarelevoPatchInfoRepository,
-    private val infusionInfoRepository : CarelevoInfusionInfoRepository
+    private val patchObserver: CarelevoPatchObserver,
+    private val bolusRepository: CarelevoBolusRepository,
+    private val patchInfoRepository: CarelevoPatchInfoRepository,
+    private val infusionInfoRepository: CarelevoInfusionInfoRepository
 ) {
 
-    fun execute(request : CarelevoUseCaseRequset) : Single<ResponseResult<CarelevoUseCaseResponse>> {
+    fun execute(request: CarelevoUseCaseRequest): Single<ResponseResult<CarelevoUseCaseResponse>> {
         return Single.fromCallable {
             runCatching {
-                if(request !is StartExtendBolusInfusionRequestModel) {
+                if (request !is StartExtendBolusInfusionRequestModel) {
                     throw IllegalArgumentException("request is not StartExtendBolusInfusionRequestModel")
                 }
 
@@ -49,7 +49,7 @@ class CarelevoStartExtendBolusInfusionUseCase @Inject constructor(
                     .ofType<StartExtendBolusResultModel>()
                     .blockingFirst()
 
-                if(startExtendBolusResult.result != SetBolusProgramResult.SUCCESS) {
+                if (startExtendBolusResult.result != SetBolusProgramResult.SUCCESS) {
                     throw IllegalStateException("request start extend bolus result is failed")
                 }
 
@@ -67,12 +67,12 @@ class CarelevoStartExtendBolusInfusionUseCase @Inject constructor(
                     )
                 )
 
-                if(!updateInfusionInfoResult) {
+                if (!updateInfusionInfoResult) {
                     throw IllegalStateException("update infusion info is failed")
                 }
 
                 val updatePatchInfoResult = patchInfoRepository.updatePatchInfo(patchInfo.copy(updatedAt = DateTime.now(), mode = 5))
-                if(!updatePatchInfoResult) {
+                if (!updatePatchInfoResult) {
                     throw IllegalStateException("update patch info is failed")
                 }
                 ResultSuccess

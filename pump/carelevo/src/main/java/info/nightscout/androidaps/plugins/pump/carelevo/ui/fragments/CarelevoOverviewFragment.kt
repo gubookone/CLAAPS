@@ -1,9 +1,7 @@
 package info.nightscout.androidaps.plugins.pump.carelevo.ui.fragments
 
 import android.content.Intent
-import android.os.Build.VERSION_CODES.P
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import androidx.fragment.app.viewModels
 import app.aaps.core.ui.toast.ToastUtils
@@ -24,13 +22,13 @@ import info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoOve
 
 class CarelevoOverviewFragment : CarelevoBaseFragment<FragmentCarelevoOverviewBinding>(R.layout.fragment_carelevo_overview) {
 
-    private val viewModel : CarelevoOverviewViewModel by viewModels { viewModelFactory }
+    private val viewModel: CarelevoOverviewViewModel by viewModels { viewModelFactory }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.viewModel = viewModel
         binding.lifecycleOwner = this.viewLifecycleOwner
-        if(!viewModel.isCreated) {
+        if (!viewModel.isCreated) {
             viewModel.observePatchInfo()
             viewModel.observePatchState()
             viewModel.observeInfusionInfo()
@@ -45,12 +43,12 @@ class CarelevoOverviewFragment : CarelevoBaseFragment<FragmentCarelevoOverviewBi
         loadingProgress = CarelevoBaseCircleProgress(requireContext())
         with(binding) {
             btnConnect.setOnClickListener {
-                if(this@CarelevoOverviewFragment.viewModel.bleState.value == false) {
+                if (this@CarelevoOverviewFragment.viewModel.bleState.value == false) {
                     Intent(requireContext(), CarelevoActivity::class.java).apply {
                         putExtra("type", 1)
                         startActivity(this)
                     }
-                } else if(this@CarelevoOverviewFragment.viewModel.bleState.value == null) {
+                } else if (this@CarelevoOverviewFragment.viewModel.bleState.value == null) {
                     Intent(requireContext(), CarelevoActivity::class.java).apply {
                         putExtra("type", 0)
                         startActivity(this)
@@ -84,47 +82,57 @@ class CarelevoOverviewFragment : CarelevoBaseFragment<FragmentCarelevoOverviewBi
         }
     }
 
-    private fun handleState(state : State) {
-        when(state) {
-            is UiState.Idle -> hideFullScreenProgress()
+    private fun handleState(state: State) {
+        when (state) {
+            is UiState.Idle    -> hideFullScreenProgress()
             is UiState.Loading -> showFullScreenProgress()
-            else -> hideFullScreenProgress()
+            else               -> hideFullScreenProgress()
         }
     }
 
-    private fun handleEvent(event : Event) {
-        when(event) {
-            is CarelevoOverviewEvent.ShowMessageBluetoothNotEnabled -> {
+    private fun handleEvent(event: Event) {
+        when (event) {
+            is CarelevoOverviewEvent.ShowMessageBluetoothNotEnabled    -> {
                 ToastUtils.infoToast(requireContext(), "블루투스 연결 상태를 확인해 주세요.")
             }
+
             is CarelevoOverviewEvent.ShowMessageCarelevoIsNotConnected -> {
                 ToastUtils.infoToast(requireContext(), "연결된 패치가 없습니다.")
             }
-            is CarelevoOverviewEvent.DiscardComplete -> {
+
+            is CarelevoOverviewEvent.DiscardComplete                   -> {
                 ToastUtils.infoToast(requireContext(), "사용종료 완료되었습니다.")
             }
-            is CarelevoOverviewEvent.DiscardFailed -> {
+
+            is CarelevoOverviewEvent.DiscardFailed                     -> {
                 ToastUtils.infoToast(requireContext(), "사용종료 실패 했습니다. 다시 시도해 주세요.")
             }
-            is CarelevoOverviewEvent.ResumePumpComplete -> {
+
+            is CarelevoOverviewEvent.ResumePumpComplete                -> {
                 ToastUtils.infoToast(requireContext(), "주입 재개 성공했습니다.")
             }
-            is CarelevoOverviewEvent.ResumePumpFailed -> {
+
+            is CarelevoOverviewEvent.ResumePumpFailed                  -> {
                 ToastUtils.infoToast(requireContext(), "주입 재개 실패 했습니다. 다시 시도해 주세요.")
             }
-            is CarelevoOverviewEvent.StopPumpComplete -> {
+
+            is CarelevoOverviewEvent.StopPumpComplete                  -> {
                 ToastUtils.infoToast(requireContext(), "주입 정지 성공했습니다.")
             }
-            is CarelevoOverviewEvent.StopPumpFailed -> {
+
+            is CarelevoOverviewEvent.StopPumpFailed                    -> {
                 ToastUtils.infoToast(requireContext(), "주입 정지 실패했습니다. 다시 시도해 주세요.")
             }
-            is CarelevoOverviewEvent.ShowPumpResumeDialog -> {
+
+            is CarelevoOverviewEvent.ShowPumpResumeDialog              -> {
                 showPumpResumeConfirmDialog()
             }
-            is CarelevoOverviewEvent.ShowPumpStopDurationSelectDialog -> {
+
+            is CarelevoOverviewEvent.ShowPumpStopDurationSelectDialog  -> {
                 showPumpStopDurationSelectDialog()
             }
-            else -> Unit
+
+            else                                                       -> Unit
         }
     }
 

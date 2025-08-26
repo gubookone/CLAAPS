@@ -14,7 +14,7 @@ import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.result.Resu
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.CarelevoBasalRepository
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.CarelevoInfusionInfoRepository
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.CarelevoPatchInfoRepository
-import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.CarelevoUseCaseRequset
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.CarelevoUseCaseRequest
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.CarelevoUseCaseResponse
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.basal.model.StartTempBasalInfusionRequestModel
 import io.reactivex.rxjava3.core.Single
@@ -25,16 +25,16 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 class CarelevoStartTempBasalInfusionUseCase @Inject constructor(
-    private val patchObserver : CarelevoPatchObserver,
-    private val basalRepository : CarelevoBasalRepository,
-    private val patchInfoRepository : CarelevoPatchInfoRepository,
-    private val infusionInfoRepository : CarelevoInfusionInfoRepository
+    private val patchObserver: CarelevoPatchObserver,
+    private val basalRepository: CarelevoBasalRepository,
+    private val patchInfoRepository: CarelevoPatchInfoRepository,
+    private val infusionInfoRepository: CarelevoInfusionInfoRepository
 ) {
 
-    fun execute(request : CarelevoUseCaseRequset) : Single<ResponseResult<CarelevoUseCaseResponse>> {
+    fun execute(request: CarelevoUseCaseRequest): Single<ResponseResult<CarelevoUseCaseResponse>> {
         return Single.fromCallable {
             runCatching {
-                if(request !is StartTempBasalInfusionRequestModel) {
+                if (request !is StartTempBasalInfusionRequestModel) {
                     throw IllegalArgumentException("request is not StartTempBasalInfusionRequestModel")
                 }
 
@@ -43,8 +43,8 @@ class CarelevoStartTempBasalInfusionUseCase @Inject constructor(
                 val hour = request.minutes / 60
                 val min = request.minutes % 60
 
-                val pendingResult = if(request.isUnit) {
-                    if(request.speed == null) {
+                val pendingResult = if (request.isUnit) {
+                    if (request.speed == null) {
                         throw IllegalArgumentException("temp basal infusion type is unit, therefore speed must be not null")
                     }
                     basalRepository.requestStartTempBasalProgramByUnit(
@@ -55,7 +55,7 @@ class CarelevoStartTempBasalInfusionUseCase @Inject constructor(
                         )
                     )
                 } else {
-                    if(request.percent == null) {
+                    if (request.percent == null) {
                         throw IllegalArgumentException("temp basal infusion type is percent, therefore percent must be not null")
                     }
                     basalRepository.requestStartTempBasalProgramByPercent(
@@ -76,7 +76,7 @@ class CarelevoStartTempBasalInfusionUseCase @Inject constructor(
                     .ofType<StartTempBasalProgramResultModel>()
                     .blockingFirst()
 
-                if(startTempBasalResult.result != SetBasalProgramResult.SUCCESS) {
+                if (startTempBasalResult.result != SetBasalProgramResult.SUCCESS) {
                     throw IllegalStateException("request start temp basal result is failed")
                 }
 
@@ -91,13 +91,13 @@ class CarelevoStartTempBasalInfusionUseCase @Inject constructor(
                     )
                 )
 
-                if(!updateInfusionInfoResult) {
+                if (!updateInfusionInfoResult) {
                     throw IllegalStateException("update infusion info is failed")
                 }
 
                 val updatePatchInfoResult = patchInfoRepository.updatePatchInfo(patchInfo.copy(updatedAt = DateTime.now(), mode = 2))
 
-                if(!updatePatchInfoResult) {
+                if (!updatePatchInfoResult) {
                     throw IllegalStateException("update patch info is failed")
                 }
 

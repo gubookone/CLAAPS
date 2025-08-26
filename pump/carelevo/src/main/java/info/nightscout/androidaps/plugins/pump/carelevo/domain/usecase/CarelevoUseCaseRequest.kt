@@ -1,4 +1,4 @@
 package info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase
 
-interface CarelevoUseCaseRequset {
+interface CarelevoUseCaseRequest {
 }

@@ -11,7 +11,7 @@ import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.bt.SetThres
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.result.ResultSuccess
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.CarelevoPatchRepository
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.CarelevoUserSettingInfoRepository
-import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.CarelevoUseCaseRequset
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.CarelevoUseCaseRequest
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.CarelevoUseCaseResponse
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.userSetting.model.CarelevoUserSettingInfoRequestModel
 import io.reactivex.rxjava3.core.Single
@@ -21,26 +21,26 @@ import org.joda.time.DateTime
 import javax.inject.Inject
 
 class CarelevoUpdateLowInsulinNoticeAmountUseCase @Inject constructor(
-    private val patchObserver : CarelevoPatchObserver,
-    private val patchRepository : CarelevoPatchRepository,
-    private val userSettingInfoRepository : CarelevoUserSettingInfoRepository
+    private val patchObserver: CarelevoPatchObserver,
+    private val patchRepository: CarelevoPatchRepository,
+    private val userSettingInfoRepository: CarelevoUserSettingInfoRepository
 ) {
 
-    fun execute(request : CarelevoUseCaseRequset) : Single<ResponseResult<CarelevoUseCaseResponse>> {
+    fun execute(request: CarelevoUseCaseRequest): Single<ResponseResult<CarelevoUseCaseResponse>> {
         return Single.fromCallable {
             runCatching {
-                if(request !is CarelevoUserSettingInfoRequestModel) {
+                if (request !is CarelevoUserSettingInfoRequestModel) {
                     throw IllegalArgumentException("request is not CarelevoUserSettingInfoRequestModel")
                 }
 
-                if(request.lowInsulinNoticeAmount == null || request.patchState == null) {
+                if (request.lowInsulinNoticeAmount == null || request.patchState == null) {
                     throw IllegalArgumentException("patch state, low insulin notice amount must be not null")
                 }
 
                 val userSettingInfo = userSettingInfoRepository.getUserSettingInfoBySync()
                     ?: throw NullPointerException("user setting info must be not null")
 
-                when(request.patchState) {
+                when (request.patchState) {
                     is PatchState.ConnectedBooted -> {
                         Log.d("user_setting_test", "[CarelevoRxUpdateLowInsulinNoticeAmountUseCase] case 1 패치 연결 중, request patch, local update")
                         patchRepository.requestSetThresholdNotice(SetThresholdNoticeRequest(request.lowInsulinNoticeAmount, 0))
@@ -52,32 +52,34 @@ class CarelevoUpdateLowInsulinNoticeAmountUseCase @Inject constructor(
                             .ofType<SetThresholdNoticeResultModel>()
                             .blockingFirst()
 
-                        if(requestResult.result != Result.SUCCESS) {
+                        if (requestResult.result != Result.SUCCESS) {
                             throw IllegalStateException("request update low insulin notice amount result is failed")
                         }
 
                         val updateUserSettingInfoResult = userSettingInfoRepository.updateUserSettingInfo(
                             userSettingInfo.copy(updatedAt = DateTime.now(), lowInsulinNoticeAmount = request.lowInsulinNoticeAmount, needLowInsulinNoticeAmountSyncPatch = false)
                         )
-                        if(!updateUserSettingInfoResult) {
+                        if (!updateUserSettingInfoResult) {
                             throw IllegalStateException("update user setting info is failed")
                         }
                     }
+
                     is PatchState.NotConnectedNotBooting -> {
                         Log.d("user_setting_test", "[CarelevoRxUpdateLowInsulinNoticeAmountUseCase] case 2 패치 미 연결중, local update patch sync false")
                         val updateUserSettingInfoResult = userSettingInfoRepository.updateUserSettingInfo(
                             userSettingInfo.copy(updatedAt = DateTime.now(), lowInsulinNoticeAmount = request.lowInsulinNoticeAmount, needLowInsulinNoticeAmountSyncPatch = false)
                         )
-                        if(!updateUserSettingInfoResult) {
+                        if (!updateUserSettingInfoResult) {
                             throw IllegalStateException("update user setting info is failed")
                         }
                     }
+
                     else -> {
                         Log.d("user_setting_test", "[CarelevoRxUpdateLowInsulinNoticeAmountUseCase] case 3 패치 연결 끊김, local update, sync patch true")
                         val updateUserSettingInfoResult = userSettingInfoRepository.updateUserSettingInfo(
                             userSettingInfo.copy(updatedAt = DateTime.now(), lowInsulinNoticeAmount = request.lowInsulinNoticeAmount, needLowInsulinNoticeAmountSyncPatch = true)
                         )
-                        if(!updateUserSettingInfoResult) {
+                        if (!updateUserSettingInfoResult) {
                             throw IllegalStateException("update user setting info is failed")
                         }
                     }

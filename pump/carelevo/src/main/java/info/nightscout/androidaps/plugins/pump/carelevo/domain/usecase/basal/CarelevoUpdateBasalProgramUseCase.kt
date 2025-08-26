@@ -17,7 +17,7 @@ import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.result.Resu
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.CarelevoBasalRepository
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.CarelevoInfusionInfoRepository
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.CarelevoPatchInfoRepository
-import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.CarelevoUseCaseRequset
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.CarelevoUseCaseRequest
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.CarelevoUseCaseResponse
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.basal.model.SetBasalProgramRequestModel
 import io.reactivex.rxjava3.core.Single
@@ -28,28 +28,28 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 class CarelevoUpdateBasalProgramUseCase @Inject constructor(
-    private val patchObserver : CarelevoPatchObserver,
-    private val basalRepository : CarelevoBasalRepository,
-    private val patchInfoRepository : CarelevoPatchInfoRepository,
-    private val infusionInfoRepository : CarelevoInfusionInfoRepository
+    private val patchObserver: CarelevoPatchObserver,
+    private val basalRepository: CarelevoBasalRepository,
+    private val patchInfoRepository: CarelevoPatchInfoRepository,
+    private val infusionInfoRepository: CarelevoInfusionInfoRepository
 ) {
 
-    fun execute(request : CarelevoUseCaseRequset) : Single<ResponseResult<CarelevoUseCaseResponse>> {
+    fun execute(request: CarelevoUseCaseRequest): Single<ResponseResult<CarelevoUseCaseResponse>> {
         return Single.fromCallable {
             runCatching {
-                if(request !is SetBasalProgramRequestModel) {
+                if (request !is SetBasalProgramRequestModel) {
                     throw IllegalArgumentException("request is not SetBasalProgramRequestModel")
                 }
 
                 val profileBasalSegment = request.profile.getBasalValues()
                 val basalSegment = profileBasalSegment.mapIndexed { index, value ->
-                    val nextIndex = if(profileBasalSegment.size == index + 1) {
+                    val nextIndex = if (profileBasalSegment.size == index + 1) {
                         0
                     } else {
                         index + 1
                     }
                     val startTimeMinutes = TimeUnit.SECONDS.toMinutes(value.timeAsSeconds.toLong())
-                    val endTimeMinutes = if(nextIndex == 0) {
+                    val endTimeMinutes = if (nextIndex == 0) {
                         1440
                     } else {
                         TimeUnit.SECONDS.toMinutes(profileBasalSegment[nextIndex].timeAsSeconds.toLong())
@@ -95,7 +95,7 @@ class CarelevoUpdateBasalProgramUseCase @Inject constructor(
 
                 Log.d("basal_test", "[CarelevoRxUpdateBasalProgramUseCase] 4. 프로그램 업데이트 1 요청 결과 수신 : $requestProgram1Result")
 
-                if(requestProgram1Result.result != SetBasalProgramResult.SUCCESS) {
+                if (requestProgram1Result.result != SetBasalProgramResult.SUCCESS) {
                     throw IllegalStateException("request update program1 result is failed")
                 }
 
@@ -113,7 +113,7 @@ class CarelevoUpdateBasalProgramUseCase @Inject constructor(
 
                 Log.d("basal_test", "[CarelevoRxUpdateBasalProgramUseCase] 6. 프로그램 업데이트 2 요청 결과 수신 : $requestProgram2Result")
 
-                if(requestProgram2Result.result != SetBasalProgramResult.SUCCESS) {
+                if (requestProgram2Result.result != SetBasalProgramResult.SUCCESS) {
                     throw IllegalStateException("request update program2 result is failed")
                 }
 
@@ -131,7 +131,7 @@ class CarelevoUpdateBasalProgramUseCase @Inject constructor(
 
                 Log.d("basal_test", "[CarelevoRxUpdateBasalProgramUseCase] 8. 프로그램 업데이트 3 요청 결과 수신 : $requestProgram3Result")
 
-                if(requestProgram3Result.result != SetBasalProgramResult.SUCCESS) {
+                if (requestProgram3Result.result != SetBasalProgramResult.SUCCESS) {
                     throw IllegalStateException("request update program3 result is failed")
                 }
 
@@ -142,7 +142,7 @@ class CarelevoUpdateBasalProgramUseCase @Inject constructor(
 
                 Log.d("basal_test", "[CarelevoRxUpdateBasalProgramUseCase] 9. 패치 정보 업데이트 : $updatePatchInfoResult")
 
-                if(!updatePatchInfoResult) {
+                if (!updatePatchInfoResult) {
                     throw IllegalStateException("update patch info is failed")
                 }
 
@@ -164,7 +164,7 @@ class CarelevoUpdateBasalProgramUseCase @Inject constructor(
 
                 Log.d("basal_test", "[CarelevoRxUpdateBasalProgramUseCase] 10. 주입 정보 업데이트 : $updateInfusionInfoResult")
 
-                if(!updateInfusionInfoResult) {
+                if (!updateInfusionInfoResult) {
                     throw IllegalStateException("update infusion info is failed")
                 }
                 ResultSuccess

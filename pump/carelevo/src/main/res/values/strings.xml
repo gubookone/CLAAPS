@@ -7,16 +7,31 @@
     <string name="carelevo_shortname">CL</string>
     <string name="carelevo_description">Pump integration for carelevo</string>
 
-    <string name="carelevo_patch_state_key">state</string>
-    <string name="carelevo_serial_number_key">serial number</string>
-    <string name="carelevo_lot_number_key">lot number</string>
-    <string name="carelevo_boot_date_time_key">Wake up date time</string>
-    <string name="carelevo_expiration_key">Expiration time</string>
-    <string name="carelevo_infusion_status_key">status</string>
-    <string name="carelevo_basal_rate_key">basal rate</string>
-    <string name="carelevo_temp_basal_rate_key">temp basal rate</string>
-    <string name="carelevo_insulin_remain_key">insulin remaining</string>
-    <string name="carelevo_total_delivered_insulin_key">total delivered insulin</string>
+    <!--    <string name="carelevo_patch_state_key">state</string>
+        <string name="carelevo_serial_number_key">serial number</string>
+        <string name="carelevo_lot_number_key">lot number</string>
+        <string name="carelevo_boot_date_time_key">Wake up date time</string>
+        <string name="carelevo_expiration_key">Expiration time</string>
+        <string name="carelevo_infusion_status_key">status</string>
+        <string name="carelevo_basal_rate_key">basal rate</string>
+        <string name="carelevo_temp_basal_rate_key">temp basal rate</string>
+        <string name="carelevo_insulin_remain_key">insulin remaining</string>
+        <string name="carelevo_total_delivered_insulin_key">total delivered insulin</string>
+        <string name="carelevo_running_remain_time">패치 남은 시간</string>-->
+
+    <string name="carelevo_patch_state_key">상태</string>
+    <string name="carelevo_serial_number_key">시리얼 번호</string>
+    <string name="carelevo_firmware_version_key">펌웨어 버전</string>
+    <string name="carelevo_lot_number_key">로트 번호</string>
+    <string name="carelevo_boot_date_time_key">기기 시작 시간</string>
+    <string name="carelevo_expiration_key">만료 시간</string>
+    <string name="carelevo_infusion_status_key">주입 상태</string>
+    <string name="carelevo_basal_rate_key">기저 속도</string>
+    <string name="carelevo_temp_basal_rate_key">임시 기저 속도</string>
+    <string name="carelevo_insulin_remain_key">남은 인슐린</string>
+    <string name="carelevo_total_delivered_basal_key">총 주입 기저</string>
+    <string name="carelevo_total_delivered_bolus_key">총 주입 볼러스</string>
+    <string name="carelevo_running_remain_time">패치 남은 시간</string>
 
     <string name="carelevo_state_none_value">no connection</string>
     <string name="carelevo_state_disconnected_value">disconnected</string>
@@ -26,6 +41,7 @@
     <string name="carelevo_overview_communication_btn_label">COMMUNICATION CHECK</string>
     <string name="carelevo_overview_pump_stop_btn_label">PUMP STOP</string>
     <string name="carelevo_overview_pump_resume_btn_label">PUMP RESUME</string>
+    <string name="carelevo_overview_pump_discard_btn_label">DISCARD</string>
 
     <string name="carelevo_overview_infusion_state_basal">basal</string>
     <string name="carelevo_overview_infusion_state_temp_basal">temp basal</string>
@@ -39,6 +55,7 @@
 
     <string name="key_carelevo_low_reservoir_reminders" translatable="false">carelevo_low_reservoir_reminders</string>
     <string name="carelevo_low_reservoir_reminders_title">인슐린 부족 알람</string>
+    <string name="carelevo_patch_buzzer_alarm_title">패치 부저 알람</string>
     <string name="carelevo_patch_expiration_reminders_title">패치 사용 기간 알림 설정</string>
     <string name="carelevo_low_reservoir_reminders_title_value">인슐린 부족 알람 설정 값</string>
     <string name="carelevo_patch_expiration_reminders_title_value">패치 사용 기간 알림 설정 값</string>
@@ -48,4 +65,7 @@
     <string name="carelevo_preferences_category_alerts">경고</string>
     <string name="carelevo_preferences_category_confirmation_beeps">확인 신호음</string>
     <string name="carelevo_preferences_category_notifications">알림</string>
+
+    <string name="common_unit_day_hour_value">%d일 %d시간</string>
+    <string name="common_unit_hour_value">%d시간</string>
 </resources>

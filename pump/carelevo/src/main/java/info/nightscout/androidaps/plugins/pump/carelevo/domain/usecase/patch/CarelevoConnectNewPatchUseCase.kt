@@ -19,7 +19,7 @@ import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.patch.Carel
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.result.ResultSuccess
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.CarelevoPatchInfoRepository
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.CarelevoPatchRepository
-import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.CarelevoUseCaseRequset
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.CarelevoUseCaseRequest
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.CarelevoUseCaseResponse
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.model.CarelevoConnectNewPatchRequestModel
 import info.nightscout.androidaps.plugins.pump.carelevo.ext.checkSumV2
@@ -30,15 +30,15 @@ import io.reactivex.rxjava3.schedulers.Schedulers
 import javax.inject.Inject
 
 class CarelevoConnectNewPatchUseCase @Inject constructor(
-    private val patchObserver : CarelevoPatchObserver,
-    private val patchRepository : CarelevoPatchRepository,
-    private val patchInfoRepository : CarelevoPatchInfoRepository,
+    private val patchObserver: CarelevoPatchObserver,
+    private val patchRepository: CarelevoPatchRepository,
+    private val patchInfoRepository: CarelevoPatchInfoRepository,
 ) {
 
-    fun execute(request : CarelevoUseCaseRequset) : Single<ResponseResult<CarelevoUseCaseResponse>> {
+    fun execute(request: CarelevoUseCaseRequest): Single<ResponseResult<CarelevoUseCaseResponse>> {
         return Single.fromCallable {
             runCatching {
-                if(request !is CarelevoConnectNewPatchRequestModel) {
+                if (request !is CarelevoConnectNewPatchRequestModel) {
                     throw IllegalArgumentException("request is not CarelevoConnectNewPatchRequestModel")
                 }
 
@@ -61,14 +61,14 @@ class CarelevoConnectNewPatchUseCase @Inject constructor(
 
                 Log.d("connect_test", "[CarelevoRxConnectNewPatchUseCase] 3. 맥 어드레스 요청 결과 수신 : $addressInfoResult")
 
-                if(addressInfoResult.address.isEmpty()) {
+                if (addressInfoResult.address.isEmpty()) {
                     throw NullPointerException("mac address must be not empty")
                 }
 
                 val address = buildString {
                     for (i in 2 until 24 step 4) {
                         append(addressInfoResult.address.subSequence(i, i + 2))
-                        if(i < 20) {
+                        if (i < 20) {
                             append(":")
                         }
                     }
@@ -95,7 +95,7 @@ class CarelevoConnectNewPatchUseCase @Inject constructor(
 
                 Log.d("connect_test", "[CarelevoRxConnectNewPatchUseCase] 7. 체크섬 결과 확인 요청 결과 수신 : $appAuthResult")
 
-                if(appAuthResult.result != Result.SUCCESS) {
+                if (appAuthResult.result != Result.SUCCESS) {
                     throw IllegalStateException("")
                 }
 
@@ -120,7 +120,7 @@ class CarelevoConnectNewPatchUseCase @Inject constructor(
 
                 Log.d("connect_test", "[CarelevoRxConnectNewPatchUseCase] 10. 패치 세부 정보 수신 : $inquiryDetailModel")
 
-                if(inquiryDetailModel.result != Result.SUCCESS) {
+                if (inquiryDetailModel.result != Result.SUCCESS) {
                     throw IllegalStateException("")
                 }
 
@@ -137,7 +137,7 @@ class CarelevoConnectNewPatchUseCase @Inject constructor(
 
                 Log.d("connect_test", "[CarelevoRxConnectNewPatchUseCase] 12. 알람 모드 설정 요청 결과 수신 : $setAlarmModeResultModel")
 
-                if(setAlarmModeResultModel.result != Result.SUCCESS) {
+                if (setAlarmModeResultModel.result != Result.SUCCESS) {
                     throw IllegalStateException("")
                 }
 
@@ -157,7 +157,7 @@ class CarelevoConnectNewPatchUseCase @Inject constructor(
 
                 Log.d("connect_test", "[CarelevoRxConnectNewPatchUseCase] 14. 사용자 설정값 요청 결과 수신 : $setThresholdResult")
 
-                if(setThresholdResult.result != Result.SUCCESS) {
+                if (setThresholdResult.result != Result.SUCCESS) {
                     throw IllegalStateException("")
                 }
 
@@ -179,7 +179,7 @@ class CarelevoConnectNewPatchUseCase @Inject constructor(
 
                 Log.d("connect_test", "[CarelevoRxConnectNewPatchUseCase] 15. 패치 정보 저장 : $updatePatchInfoResult")
 
-                if(!updatePatchInfoResult) {
+                if (!updatePatchInfoResult) {
                     throw IllegalStateException("update patch info is failed")
                 }
                 ResultSuccess
@@ -194,7 +194,7 @@ class CarelevoConnectNewPatchUseCase @Inject constructor(
         }.observeOn(Schedulers.io())
     }
 
-    private fun generateRandomKey(range : ClosedRange<Int>) : Int {
+    private fun generateRandomKey(range: ClosedRange<Int>): Int {
         return range.run {
             (Math.random() * (endInclusive - start + 1) + start).toInt()
         }

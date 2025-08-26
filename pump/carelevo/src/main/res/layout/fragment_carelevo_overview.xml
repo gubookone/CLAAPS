@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layout
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:bind="http://schemas.android.com/apk/res-auto">
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <data>
+
         <variable
             name="viewModel"
             type="info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoOverviewViewModel" />
-        <import type="info.nightscout.androidaps.plugins.pump.carelevo.ui.ext.ViewExtKt"/>
+
+        <import type="info.nightscout.androidaps.plugins.pump.carelevo.ui.ext.ViewExtKt" />
     </data>
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -26,115 +25,126 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
-                <include
+                <info.nightscout.androidaps.plugins.pump.carelevo.ui.widget.CarelevoKeyValueRowView
                     android:id="@+id/container_patch_state"
-                    layout="@layout/item_carelevo_row_key_value_vertical_line"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    app:key="@{@string/carelevo_patch_state_key}"
-                    app:value="@{viewModel.bleState == null ? @string/carelevo_state_none_value : viewModel.bleState ? @string/carelevo_state_connected_value : @string/carelevo_state_disconnected_value}"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:keyText="@{@string/carelevo_patch_state_key}"
+                    app:valueText="@{viewModel.bleState == null ? @string/carelevo_state_none_value : viewModel.bleState ? @string/carelevo_state_connected_value : @string/carelevo_state_disconnected_value}"
                     app:topLineVisible="@{true}"
-                    app:bottomLineVisible="@{true}"/>
+                    app:bottomLineVisible="@{true}" />
 
-                <include
+                <info.nightscout.androidaps.plugins.pump.carelevo.ui.widget.CarelevoKeyValueRowView
                     android:id="@+id/container_serial_num"
-                    layout="@layout/item_carelevo_row_key_value_vertical_line"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     app:layout_constraintTop_toBottomOf="@+id/container_patch_state"
-                    app:key="@{@string/carelevo_serial_number_key}"
-                    app:value="@{viewModel.serialNumber}"
+                    app:keyText="@{@string/carelevo_serial_number_key}"
+                    app:valueText="@{viewModel.serialNumber}"
                     app:topLineVisible="@{false}"
-                    app:bottomLineVisible="@{false}"/>
+                    app:bottomLineVisible="@{false}" />
 
-                <include
+                <info.nightscout.androidaps.plugins.pump.carelevo.ui.widget.CarelevoKeyValueRowView
                     android:id="@+id/container_lot_num"
-                    layout="@layout/item_carelevo_row_key_value_vertical_line"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     app:layout_constraintTop_toBottomOf="@+id/container_serial_num"
-                    app:key="@{@string/carelevo_lot_number_key}"
-                    app:value="@{viewModel.lotNumber}"
+                    app:keyText="@{@string/carelevo_firmware_version_key}"
+                    app:valueText="@{viewModel.lotNumber}"
                     app:topLineVisible="@{false}"
-                    app:bottomLineVisible="@{false}"/>
+                    app:bottomLineVisible="@{false}" />
 
-                <include
+                <info.nightscout.androidaps.plugins.pump.carelevo.ui.widget.CarelevoKeyValueRowView
                     android:id="@+id/container_boot_time"
-                    layout="@layout/item_carelevo_row_key_value_vertical_line"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     app:layout_constraintTop_toBottomOf="@+id/container_lot_num"
-                    app:key="@{@string/carelevo_boot_date_time_key}"
-                    app:value="@{viewModel.bootDateTime}"
+                    app:keyText="@{@string/carelevo_boot_date_time_key}"
+                    app:valueText="@{viewModel.bootDateTime}"
                     app:topLineVisible="@{false}"
-                    app:bottomLineVisible="@{false}"/>
+                    app:bottomLineVisible="@{false}" />
 
-                <include
+                <info.nightscout.androidaps.plugins.pump.carelevo.ui.widget.CarelevoKeyValueRowView
                     android:id="@+id/container_expired_time"
-                    layout="@layout/item_carelevo_row_key_value_vertical_line"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     app:layout_constraintTop_toBottomOf="@+id/container_boot_time"
-                    app:key="@{@string/carelevo_expiration_key}"
-                    app:value="@{String.valueOf(viewModel.expirationTime)}"
+                    app:keyText="@{@string/carelevo_expiration_key}"
+                    app:valueText="@{String.valueOf(viewModel.expirationTime)}"
                     app:topLineVisible="@{false}"
-                    app:bottomLineVisible="@{false}"/>
+                    app:bottomLineVisible="@{false}" />
 
-                <include
+                <info.nightscout.androidaps.plugins.pump.carelevo.ui.widget.CarelevoKeyValueRowView
                     android:id="@+id/container_pump_state"
-                    layout="@layout/item_carelevo_row_key_value_vertical_line"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     app:layout_constraintTop_toBottomOf="@+id/container_expired_time"
-                    app:key="@{@string/carelevo_infusion_status_key}"
-                    app:value="@{ViewExtKt.setInfusionStateText(viewModel.infusionStatus, context)}"
+                    app:keyText="@{@string/carelevo_infusion_status_key}"
+                    app:valueText="@{ViewExtKt.setInfusionStateText(viewModel.infusionStatus, context)}"
                     app:topLineVisible="@{false}"
-                    app:bottomLineVisible="@{false}"/>
+                    app:bottomLineVisible="@{false}" />
 
-                <include
+                <info.nightscout.androidaps.plugins.pump.carelevo.ui.widget.CarelevoKeyValueRowView
                     android:id="@+id/container_basal_rate"
-                    layout="@layout/item_carelevo_row_key_value_vertical_line"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     app:layout_constraintTop_toBottomOf="@+id/container_pump_state"
-                    app:key="@{@string/carelevo_basal_rate_key}"
-                    app:value="@{String.valueOf(viewModel.basalRate)}"
+                    app:keyText="@{@string/carelevo_basal_rate_key}"
+                    app:valueText="@{String.valueOf(viewModel.basalRate)}"
                     app:topLineVisible="@{true}"
-                    app:bottomLineVisible="@{false}"/>
+                    app:bottomLineVisible="@{false}" />
 
-                <include
+                <info.nightscout.androidaps.plugins.pump.carelevo.ui.widget.CarelevoKeyValueRowView
                     android:id="@+id/container_temp_basal_rate"
-                    layout="@layout/item_carelevo_row_key_value_vertical_line"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     app:layout_constraintTop_toBottomOf="@+id/container_basal_rate"
-                    app:key="@{@string/carelevo_temp_basal_rate_key}"
-                    app:value="@{String.valueOf(viewModel.tempBasalRate)}"
+                    app:keyText="@{@string/carelevo_temp_basal_rate_key}"
+                    app:valueText="@{String.valueOf(viewModel.tempBasalRate)}"
                     app:topLineVisible="@{false}"
-                    app:bottomLineVisible="@{false}"/>
+                    app:bottomLineVisible="@{false}" />
 
-                <include
+                <info.nightscout.androidaps.plugins.pump.carelevo.ui.widget.CarelevoKeyValueRowView
                     android:id="@+id/container_insulin_remain"
-                    layout="@layout/item_carelevo_row_key_value_vertical_line"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     app:layout_constraintTop_toBottomOf="@+id/container_temp_basal_rate"
-                    app:key="@{@string/carelevo_insulin_remain_key}"
-                    app:value="@{String.valueOf(viewModel.insulinRemains)}"
+                    app:keyText="@{@string/carelevo_insulin_remain_key}"
+                    app:valueText="@{String.valueOf(viewModel.insulinRemains)}"
                     app:topLineVisible="@{true}"
-                    app:bottomLineVisible="@{false}"/>
+                    app:bottomLineVisible="@{false}" />
 
-                <include
+                <info.nightscout.androidaps.plugins.pump.carelevo.ui.widget.CarelevoKeyValueRowView
                     android:id="@+id/container_total_delivery_doze"
-                    layout="@layout/item_carelevo_row_key_value_vertical_line"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     app:layout_constraintTop_toBottomOf="@+id/container_insulin_remain"
-                    app:key="@{@string/carelevo_total_delivered_insulin_key}"
-                    app:value="@{String.valueOf(viewModel.totalDeliveredInsulinAmount)}"
+                    app:keyText="@{@string/carelevo_total_delivered_basal_key}"
+                    app:valueText="@{String.valueOf(viewModel.totalDeliveredBasalAmount)}"
                     app:topLineVisible="@{true}"
-                    app:bottomLineVisible="@{true}"/>
+                    app:bottomLineVisible="@{false}" />
 
+                <info.nightscout.androidaps.plugins.pump.carelevo.ui.widget.CarelevoKeyValueRowView
+                    android:id="@+id/container_total_delivery_bolus_doze"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:layout_constraintTop_toBottomOf="@+id/container_total_delivery_doze"
+                    app:keyText="@{@string/carelevo_total_delivered_bolus_key}"
+                    app:valueText="@{String.valueOf(viewModel.totalDeliveredBolusAmount)}"
+                    app:topLineVisible="@{false}"
+                    app:bottomLineVisible="@{true}" />
+
+
+                <info.nightscout.androidaps.plugins.pump.carelevo.ui.widget.CarelevoKeyValueRowView
+                    android:id="@+id/container_running_remain_minutes"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:layout_constraintTop_toBottomOf="@+id/container_total_delivery_bolus_doze"
+                    app:keyText="@{@string/carelevo_running_remain_time}"
+                    app:valueText="@{ViewExtKt.convertMinutesToRemainingHours(context, viewModel.runningRemainMinutes)}"
+                    app:topLineVisible="@{true}"
+                    app:bottomLineVisible="@{true}" />
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -155,7 +165,7 @@
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toStartOf="@+id/btn_discard"
-                android:text="@{viewModel.bleState == null ? @string/carelevo_overview_connect_btn_label : viewModel.bleState ? @string/carelevo_overview_connect_btn_label : @string/carelevo_overview_communication_btn_label}"/>
+                android:text="@{viewModel.bleState == null ? @string/carelevo_overview_connect_btn_label : viewModel.bleState ? @string/carelevo_overview_connect_btn_label : @string/carelevo_overview_communication_btn_label}" />
 
             <Button
                 android:id="@+id/btn_discard"
@@ -166,7 +176,7 @@
                 app:layout_constraintStart_toEndOf="@+id/btn_connect"
                 app:layout_constraintEnd_toStartOf="@+id/btn_pump"
                 android:layout_marginHorizontal="8dp"
-                android:text="discard"/>
+                android:text="@string/carelevo_overview_pump_discard_btn_label" />
 
             <Button
                 android:id="@+id/btn_pump"
@@ -176,7 +186,7 @@
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toEndOf="@+id/btn_discard"
                 app:layout_constraintEnd_toEndOf="parent"
-                android:text="@{viewModel.isPumpStop ? @string/carelevo_overview_pump_resume_btn_label : @string/carelevo_overview_pump_stop_btn_label}"/>
+                android:text="@{viewModel.isPumpStop ? @string/carelevo_overview_pump_resume_btn_label : @string/carelevo_overview_pump_stop_btn_label}" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 

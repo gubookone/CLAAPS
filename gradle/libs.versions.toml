@@ -1,5 +1,8 @@
 # libs.versions.toml
 [versions]
+activity = "1.10.1"
+appcompat = "1.7.0"
+constraintlayout = "2.1.4"
 gradlePlugin = "8.11.1"
 googleServices = "4.4.3"
 kotlin = "2.1.21"
@@ -26,6 +29,9 @@ kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 
 
 [libraries]
+activity = { module = "androidx.activity:activity", version.ref = "activity" }
+androidx-appcompat-v170 = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
+androidx-constraintlayout-v214 = { module = "androidx.constraintlayout:constraintlayout", version.ref = "constraintlayout" }
 com-android-tools-build = { group = "com.android.tools.build", name = "gradle", version.ref = "gradlePlugin" }
 com-google-gms = { group = "com.google.gms", name = "google-services", version.ref = "googleServices" }
 

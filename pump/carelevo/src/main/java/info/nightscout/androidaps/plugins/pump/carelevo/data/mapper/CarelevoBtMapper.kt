@@ -97,7 +97,8 @@ internal fun ProtocolSafetyCheckRspModel.transformToDomainModel() = SafetyCheckR
     timestamp = timestamp,
     command = command,
     result = result,
-    volume = insulinVolume
+    volume = insulinVolume,
+    durationSeconds = durationSeconds
 )
 
 internal fun ProtocolAdditionalPrimingRspModel.transformToDomainModel() = AdditionalPrimingResponse(
