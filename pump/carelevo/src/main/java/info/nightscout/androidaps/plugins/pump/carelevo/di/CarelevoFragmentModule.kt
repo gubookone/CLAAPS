@@ -3,36 +3,46 @@ package info.nightscout.androidaps.plugins.pump.carelevo.di
 import dagger.Module
 import dagger.android.ContributesAndroidInjector
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.fragments.CarelevoCommunicationCheckFragment
-import info.nightscout.androidaps.plugins.pump.carelevo.ui.fragments.CarelevoConnectCannulaFragment
-import info.nightscout.androidaps.plugins.pump.carelevo.ui.fragments.CarelevoConnectFragment
-import info.nightscout.androidaps.plugins.pump.carelevo.ui.fragments.CarelevoConnectPrepareFragment
-import info.nightscout.androidaps.plugins.pump.carelevo.ui.fragments.CarelevoConnectSafetyCheckFragment
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.fragments.CarelevoOverviewFragment
+import info.nightscout.androidaps.plugins.pump.carelevo.ui.fragments.CarelevoPatchAttachFragment
+import info.nightscout.androidaps.plugins.pump.carelevo.ui.fragments.CarelevoPatchConnectFragment
+import info.nightscout.androidaps.plugins.pump.carelevo.ui.fragments.CarelevoPatchConnectionFlowFragment
+import info.nightscout.androidaps.plugins.pump.carelevo.ui.fragments.CarelevoPatchNeedleInsertionFragment
+import info.nightscout.androidaps.plugins.pump.carelevo.ui.fragments.CarelevoPatchSafetyCheckFragment
+import info.nightscout.androidaps.plugins.pump.carelevo.ui.fragments.CarelevoPatchStartFragment
 
 @Module
 abstract class CarelevoFragmentModule {
 
     @FragmentScope
     @ContributesAndroidInjector
-    internal abstract fun contributesCarelevoOverviewFragment() : CarelevoOverviewFragment
+    internal abstract fun contributesCarelevoOverviewFragment(): CarelevoOverviewFragment
 
     @FragmentScope
     @ContributesAndroidInjector
-    internal abstract fun contributesCarelevoConnectFragment() : CarelevoConnectFragment
+    internal abstract fun contributesCarelevoConnectFragment(): CarelevoPatchConnectionFlowFragment
 
     @FragmentScope
     @ContributesAndroidInjector
-    internal abstract fun contributesCarelevoConnectPrepareFragment() : CarelevoConnectPrepareFragment
+    internal abstract fun contributesCarelevoConnectPrepareFragment(): CarelevoPatchStartFragment
 
     @FragmentScope
     @ContributesAndroidInjector
-    internal abstract fun contributesCarelevoConnectSafetyCheckFragment() : CarelevoConnectSafetyCheckFragment
+    internal abstract fun contributesCarelevoConnectPatchFragment(): CarelevoPatchConnectFragment
 
     @FragmentScope
     @ContributesAndroidInjector
-    internal abstract fun contributesCarelevoConnectCannulaFragment() : CarelevoConnectCannulaFragment
+    internal abstract fun contributesCarelevoConnectSafetyCheckFragment(): CarelevoPatchSafetyCheckFragment
 
     @FragmentScope
     @ContributesAndroidInjector
-    internal abstract fun contributesCarelevoCommunicationCheckFragment() : CarelevoCommunicationCheckFragment
+    internal abstract fun contributesCCarelevoPatchAttachFragmentFragment(): CarelevoPatchAttachFragment
+
+    @FragmentScope
+    @ContributesAndroidInjector
+    internal abstract fun contributesCarelevoConnectCannulaFragment(): CarelevoPatchNeedleInsertionFragment
+
+    @FragmentScope
+    @ContributesAndroidInjector
+    internal abstract fun contributesCarelevoCommunicationCheckFragment(): CarelevoCommunicationCheckFragment
 }

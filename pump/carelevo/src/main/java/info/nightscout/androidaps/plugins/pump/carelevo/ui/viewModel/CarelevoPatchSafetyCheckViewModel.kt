@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlin.jvm.optionals.getOrNull
 
-class CarelevoConnectSafetyCheckViewModel @Inject constructor(
+class CarelevoPatchSafetyCheckViewModel @Inject constructor(
     private val aapsSchedulers: AapsSchedulers,
     private val bleController: CarelevoBleController,
     private val carelevoPatch: CarelevoPatch,
@@ -60,13 +60,13 @@ class CarelevoConnectSafetyCheckViewModel @Inject constructor(
 
     private fun generateEventType(event: Event): Event {
         return when (event) {
-            is CarelevoConnectSafetyCheckEvent.ShowMessageBluetoothNotEnabled    -> event
+            is CarelevoConnectSafetyCheckEvent.ShowMessageBluetoothNotEnabled -> event
             is CarelevoConnectSafetyCheckEvent.ShowMessageCarelevoIsNotConnected -> event
-            is CarelevoConnectSafetyCheckEvent.SafetyCheckComplete               -> event
-            is CarelevoConnectSafetyCheckEvent.SafetyCheckFailed                 -> event
-            is CarelevoConnectSafetyCheckEvent.DiscardComplete                   -> event
-            is CarelevoConnectSafetyCheckEvent.DiscardFailed                     -> event
-            else                                                                 -> CarelevoConnectSafetyCheckEvent.NoAction
+            is CarelevoConnectSafetyCheckEvent.SafetyCheckComplete -> event
+            is CarelevoConnectSafetyCheckEvent.SafetyCheckFailed -> event
+            is CarelevoConnectSafetyCheckEvent.DiscardComplete -> event
+            is CarelevoConnectSafetyCheckEvent.DiscardFailed -> event
+            else -> CarelevoConnectSafetyCheckEvent.NoAction
         }
     }
 
@@ -109,7 +109,7 @@ class CarelevoConnectSafetyCheckViewModel @Inject constructor(
                         triggerEvent(CarelevoConnectSafetyCheckEvent.SafetyCheckFailed)
                     }
 
-                    is ResponseResult.Error   -> {
+                    is ResponseResult.Error -> {
                         Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::startSafetyCheck] response error : ${response.e}")
                         triggerEvent(CarelevoConnectSafetyCheckEvent.SafetyCheckFailed)
                     }
@@ -119,7 +119,7 @@ class CarelevoConnectSafetyCheckViewModel @Inject constructor(
 
     fun startDiscardProcess() {
         when (carelevoPatch.patchState.value?.getOrNull()) {
-            is PatchState.ConnectedBooted              -> {
+            is PatchState.ConnectedBooted -> {
                 startDiscard()
             }
 
@@ -127,7 +127,7 @@ class CarelevoConnectSafetyCheckViewModel @Inject constructor(
                 triggerEvent(CarelevoConnectSafetyCheckEvent.DiscardComplete)
             }
 
-            else                                       -> {
+            else -> {
                 startForceDiscard()
             }
         }
@@ -154,13 +154,13 @@ class CarelevoConnectSafetyCheckViewModel @Inject constructor(
                         triggerEvent(CarelevoConnectSafetyCheckEvent.DiscardComplete)
                     }
 
-                    is ResponseResult.Error   -> {
+                    is ResponseResult.Error -> {
                         Log.d("connect_test", "[CarelevoSafetyCheckViewModel::startDiscard] response error : ${response.e}")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectSafetyCheckEvent.DiscardFailed)
                     }
 
-                    else                      -> {
+                    else -> {
                         Log.d("connect_test", "[CarelevoSafetyCheckViewModel::startDiscard] response failed")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectSafetyCheckEvent.DiscardFailed)
@@ -189,13 +189,13 @@ class CarelevoConnectSafetyCheckViewModel @Inject constructor(
                         triggerEvent(CarelevoConnectSafetyCheckEvent.DiscardComplete)
                     }
 
-                    is ResponseResult.Error   -> {
+                    is ResponseResult.Error -> {
                         Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::startForceDiscard] response error : ${response.e}")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectSafetyCheckEvent.DiscardFailed)
                     }
 
-                    else                      -> {
+                    else -> {
                         Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::startFoeceDiscard] response failed")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectSafetyCheckEvent.DiscardFailed)

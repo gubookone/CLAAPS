@@ -23,6 +23,7 @@ import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.Car
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.CarelevoPatchDiscardUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.CarelevoPatchForceDiscardUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.model.CarelevoConnectEvent
+import info.nightscout.androidaps.plugins.pump.carelevo.ui.type.CarelevoPatchStep
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.plusAssign
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,18 +33,18 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlin.jvm.optionals.getOrNull
 
-class CarelevoConnectViewModel @Inject constructor(
-    private val pumpSync : PumpSync,
+class CarelevoPatchConnectionFlowViewModel @Inject constructor(
+    private val pumpSync: PumpSync,
     private val aapsSchedulers: AapsSchedulers,
-    private val carelevoPatch : CarelevoPatch,
-    private val bleController : CarelevoBleController,
-    private val patchObserver : CarelevoPatchObserver,
-    private val patchDiscardUseCase : CarelevoPatchDiscardUseCase,
-    private val patchForceDiscardUseCase : CarelevoPatchForceDiscardUseCase,
-    private val patchCannulaInsertionConfirmUseCase : CarelevoPatchCannulaInsertionConfirmUseCase
+    private val carelevoPatch: CarelevoPatch,
+    private val bleController: CarelevoBleController,
+    private val patchObserver: CarelevoPatchObserver,
+    private val patchDiscardUseCase: CarelevoPatchDiscardUseCase,
+    private val patchForceDiscardUseCase: CarelevoPatchForceDiscardUseCase,
+    private val patchCannulaInsertionConfirmUseCase: CarelevoPatchCannulaInsertionConfirmUseCase
 ) : ViewModel() {
 
-    private val _page : MutableStateFlow<Int> = MutableStateFlow(0)
+    private val _page: MutableStateFlow<CarelevoPatchStep> = MutableStateFlow(CarelevoPatchStep.PATCH_START)
     val page = _page.asStateFlow()
 
     private var _isCreated = false
@@ -52,17 +53,24 @@ class CarelevoConnectViewModel @Inject constructor(
     private val _event = MutableEventFlow<Event>()
     val event = _event.asEventFlow()
 
-    private val _uiState : MutableStateFlow<State> = MutableStateFlow(UiState.Idle)
+    private val _uiState: MutableStateFlow<State> = MutableStateFlow(UiState.Idle)
     val uiState = _uiState.asStateFlow()
+
+    private var _inputInsulin = 300
+    val inputInsulin get() = _inputInsulin
 
     private val compositeDisposable = CompositeDisposable()
 
-    fun setIsCreated(isCreated : Boolean) {
+    fun setIsCreated(isCreated: Boolean) {
         _isCreated = isCreated
     }
 
-    fun setPage(page : Int) {
+    fun setPage(page: CarelevoPatchStep) {
         _page.tryEmit(page)
+    }
+
+    fun setInputInsulin(insulin: Int) {
+        _inputInsulin = insulin
     }
 
     fun observePatchEvent() {
@@ -70,9 +78,9 @@ class CarelevoConnectViewModel @Inject constructor(
             .observeOn(aapsSchedulers.io)
             .subscribeOn(aapsSchedulers.io)
             .subscribe { model ->
-                when(model) {
+                when (model) {
                     is CannulaInsertionResultModel -> {
-                        if(model.result != Result.FAILED) {
+                        if (model.result != Result.FAILED) {
                             confirmCannulaInsertionResult()
                         }
                     }
@@ -85,7 +93,7 @@ class CarelevoConnectViewModel @Inject constructor(
             .observeOn(aapsSchedulers.io)
             .subscribeOn(aapsSchedulers.io)
             .subscribe { response ->
-                when(response) {
+                when (response) {
                     is ResponseResult.Success -> {
                         Log.d("connect_test", "[CarelevoConnectViewModel::confirmCannulaInsertionResult] response success")
                         pumpSync.insertTherapyEventIfNewWithTimestamp(
@@ -95,9 +103,11 @@ class CarelevoConnectViewModel @Inject constructor(
                             pumpSerial = carelevoPatch.patchInfo.value?.getOrNull()?.manufactureNumber ?: ""
                         )
                     }
+
                     is ResponseResult.Error -> {
                         Log.d("connect_test", "[CarelevoConnectViewModel::ConfirmCannulaInsertionResult] response error : ${response.e}")
                     }
+
                     else -> {
                         Log.d("connect_test", "[CarelevoConnectViewModel::ConfirmCannulaInsertionResult] response failed")
                     }
@@ -105,36 +115,38 @@ class CarelevoConnectViewModel @Inject constructor(
             }
     }
 
-    fun triggerEvent(event : Event) {
+    fun triggerEvent(event: Event) {
         viewModelScope.launch {
-            when(event) {
+            when (event) {
                 is CarelevoConnectEvent -> generateEventType(event).run { _event.emit(this) }
             }
         }
     }
 
-    private fun generateEventType(event : Event) : Event {
-        return when(event) {
+    private fun generateEventType(event: Event): Event {
+        return when (event) {
             is CarelevoConnectEvent.DiscardComplete -> event
             is CarelevoConnectEvent.DiscardFailed -> event
             else -> CarelevoConnectEvent.NoAction
         }
     }
 
-    private fun setUiState(state : State) {
+    private fun setUiState(state: State) {
         viewModelScope.launch {
             _uiState.tryEmit(state)
         }
     }
 
     fun startPatchDiscardProcess() {
-        when(carelevoPatch.patchState.value?.getOrNull()) {
+        when (carelevoPatch.patchState.value?.getOrNull()) {
             is PatchState.ConnectedBooted -> {
                 startPatchDiscard()
             }
+
             is PatchState.NotConnectedNotBooting, null -> {
                 triggerEvent(CarelevoConnectEvent.DiscardComplete)
             }
+
             else -> {
                 startPatchForceDiscard()
             }
@@ -153,7 +165,7 @@ class CarelevoConnectViewModel @Inject constructor(
                 triggerEvent(CarelevoConnectEvent.DiscardFailed)
             }
             .subscribe { response ->
-                when(response) {
+                when (response) {
                     is ResponseResult.Success -> {
                         Log.d("connect_test", "[CarelevoConnectViewModel::startPatchDiscard] response success")
                         bleController.unBondDevice()
@@ -161,11 +173,13 @@ class CarelevoConnectViewModel @Inject constructor(
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectEvent.DiscardComplete)
                     }
+
                     is ResponseResult.Error -> {
                         Log.d("connect_test", "[CarelevoConnectViewModel::startPatchDiscard] response error : ${response.e}")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectEvent.DiscardFailed)
                     }
+
                     else -> {
                         Log.d("connect_test", "[CarelevoConnectViewModel::startPatchDiscard] response failed")
                         setUiState(UiState.Idle)
@@ -187,7 +201,7 @@ class CarelevoConnectViewModel @Inject constructor(
             }
             .subscribeOn(aapsSchedulers.io)
             .subscribe { response ->
-                when(response) {
+                when (response) {
                     is ResponseResult.Success -> {
                         Log.d("connect_test", "[CarelevoConnectViewModel::startPatchForceDiscard] response success")
                         bleController.unBondDevice()
@@ -195,11 +209,13 @@ class CarelevoConnectViewModel @Inject constructor(
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectEvent.DiscardComplete)
                     }
+
                     is ResponseResult.Error -> {
                         Log.d("connect_test", "[CarelevoConnectViewModel::startPatchForceDiscard] response error : ${response.e}")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectEvent.DiscardFailed)
                     }
+
                     else -> {
                         Log.d("connect_test", "[CarelevoConnectViewModel::startPatchForceDiscard] response failed")
                         setUiState(UiState.Idle)

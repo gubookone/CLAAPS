@@ -17,17 +17,19 @@ import info.nightscout.androidaps.plugins.pump.carelevo.ui.base.CarelevoBaseFrag
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.ext.repeatOnStartedWithViewOwner
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.ext.showDialogDiscardConfirm
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.model.CarelevoConnectEvent
-import info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoConnectViewModel
+import info.nightscout.androidaps.plugins.pump.carelevo.ui.type.CarelevoPatchStep
+import info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoPatchConnectionFlowViewModel
 
-class CarelevoConnectFragment : CarelevoBaseFragment<FragmentCarelevoConnectBinding>(R.layout.fragment_carelevo_connect) {
+class CarelevoPatchConnectionFlowFragment : CarelevoBaseFragment<FragmentCarelevoConnectBinding>(R.layout.fragment_carelevo_connect) {
 
     companion object {
-        fun getInstance() : CarelevoConnectFragment = CarelevoConnectFragment()
+
+        fun getInstance(): CarelevoPatchConnectionFlowFragment = CarelevoPatchConnectionFlowFragment()
     }
 
-    private val viewModel : CarelevoConnectViewModel by activityViewModels { viewModelFactory }
+    private val viewModel: CarelevoPatchConnectionFlowViewModel by activityViewModels { viewModelFactory }
 
-    private lateinit var onBackPressCallback : OnBackPressedCallback
+    private lateinit var onBackPressCallback: OnBackPressedCallback
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
@@ -42,7 +44,7 @@ class CarelevoConnectFragment : CarelevoBaseFragment<FragmentCarelevoConnectBind
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        if(!viewModel.isCreated) {
+        if (!viewModel.isCreated) {
             viewModel.observePatchEvent()
             viewModel.setIsCreated(true)
         }
@@ -57,21 +59,16 @@ class CarelevoConnectFragment : CarelevoBaseFragment<FragmentCarelevoConnectBind
     private fun setupObserver() {
         repeatOnStartedWithViewOwner {
             viewModel.page.collect {
-                when(it) {
-                    0 -> setFragment(CarelevoConnectPrepareFragment.getInstance())
-                    1 -> setFragment(CarelevoConnectSafetyCheckFragment.getInstance())
-                    2 -> setFragment(CarelevoConnectCannulaFragment.getInstance())
+                val (currentFragment, title) = when (it) {
+                    CarelevoPatchStep.PATCH_START -> CarelevoPatchStartFragment.getInstance() to requireContext().getString(R.string.carelevo_connect_prepare_title)
+                    CarelevoPatchStep.PATCH_CONNECT -> CarelevoPatchConnectFragment.getInstance() to requireContext().getString(R.string.carelevo_connect_patch_title)
+                    CarelevoPatchStep.SAFETY_CHECK -> CarelevoPatchSafetyCheckFragment.getInstance() to requireContext().getString(R.string.carelevo_connect_safety_check_title)
+                    CarelevoPatchStep.PATCH_ATTACH -> CarelevoPatchAttachFragment.getInstance() to requireContext().getString(R.string.carelevo_connect_patch_attach_title)
+                    CarelevoPatchStep.NEEDLE_INSERTION -> CarelevoPatchNeedleInsertionFragment.getInstance() to requireContext().getString(R.string.carelevo_connect_cannula_check_title)
                 }
-                binding.tvStep.text = StringBuilder()
-                    .append(it + 1)
-                    .append(" / 3")
-                    .toString()
-                binding.tvTitle.text = when(it) {
-                    0 -> requireContext().getString(R.string.carelevo_connect_prepare_title)
-                    1 -> requireContext().getString(R.string.carelevo_connect_safety_check_title)
-                    2 -> requireContext().getString(R.string.carelevo_connect_cannula_check_title)
-                    else -> ""
-                }
+                setFragment(currentFragment)
+                binding.tvTitle.text = title
+                binding.tvStep.text = requireContext().getString(R.string.common_unit_step_format, it.ordinal + 1, CarelevoPatchStep.entries.size)
             }
         }
 
@@ -88,28 +85,30 @@ class CarelevoConnectFragment : CarelevoBaseFragment<FragmentCarelevoConnectBind
         }
     }
 
-    private fun handleEvent(event : Event) {
-        when(event) {
+    private fun handleEvent(event: Event) {
+        when (event) {
             is CarelevoConnectEvent.DiscardComplete -> {
                 ToastUtils.infoToast(requireContext(), "사용 종료 되었습니다.")
                 requireActivity().finish()
             }
+
             is CarelevoConnectEvent.DiscardFailed -> {
                 ToastUtils.infoToast(requireContext(), "사용 종료 실패 했습니다. 다시 시도해 주세요.")
             }
+
             else -> Unit
         }
     }
 
-    private fun handleState(state : State) {
-        when(state) {
+    private fun handleState(state: State) {
+        when (state) {
             is UiState.Idle -> hideFullScreenProgress()
             is UiState.Loading -> showFullScreenProgress()
             else -> hideFullScreenProgress()
         }
     }
 
-    private fun setFragment(fragment : Fragment) = childFragmentManager.beginTransaction()
+    private fun setFragment(fragment: Fragment) = childFragmentManager.beginTransaction()
         .apply {
             replace(R.id.container_fragment, fragment)
                 .addToBackStack(null)

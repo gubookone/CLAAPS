@@ -32,24 +32,24 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlin.jvm.optionals.getOrNull
 
-class CarelevoConnectCannulaViewModel @Inject constructor(
-    private val pumpSync : PumpSync,
+class CarelevoPatchNeedleInsertionViewModel @Inject constructor(
+    private val pumpSync: PumpSync,
     private val aapsSchedulers: AapsSchedulers,
-    private val carelevoPatch : CarelevoPatch,
+    private val carelevoPatch: CarelevoPatch,
     private val bleController: CarelevoBleController,
-    private val patchCannulaInsertionCheckUseCase : CarelevoPatchCannulaInsertionCheckUseCase,
-    private val patchDiscardUseCase : CarelevoPatchDiscardUseCase,
-    private val patchForceDiscardUseCase : CarelevoPatchForceDiscardUseCase,
+    private val patchCannulaInsertionCheckUseCase: CarelevoPatchCannulaInsertionCheckUseCase,
+    private val patchDiscardUseCase: CarelevoPatchDiscardUseCase,
+    private val patchForceDiscardUseCase: CarelevoPatchForceDiscardUseCase,
     private val setBasalProgramUseCase: CarelevoSetBasalProgramUseCase
 ) : ViewModel() {
 
-    private val _isNeedleInsert : MutableStateFlow<Boolean> = MutableStateFlow(false)
+    private val _isNeedleInsert: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val isNeedleInsert = _isNeedleInsert.asStateFlow()
 
     private val _event = MutableEventFlow<Event>()
     val event = _event.asEventFlow()
 
-    private val _uiState : MutableStateFlow<State> = MutableStateFlow(UiState.Idle)
+    private val _uiState: MutableStateFlow<State> = MutableStateFlow(UiState.Idle)
     val uiState = _uiState.asStateFlow()
 
     private var _isCreated = false
@@ -57,20 +57,20 @@ class CarelevoConnectCannulaViewModel @Inject constructor(
 
     private val compositeDisposable = CompositeDisposable()
 
-    fun setIsCreated(isCreated : Boolean) {
+    fun setIsCreated(isCreated: Boolean) {
         _isCreated = isCreated
     }
 
     fun triggerEvent(event: Event) {
         viewModelScope.launch {
-            when(event) {
+            when (event) {
                 is CarelevoConnectCannulaEvent -> generateEventType(event).run { _event.emit(this) }
             }
         }
     }
 
-    private fun generateEventType(event: Event) : Event {
-        return when(event) {
+    private fun generateEventType(event: Event): Event {
+        return when (event) {
             is CarelevoConnectCannulaEvent.ShowMessageBluetoothNotEnabled -> event
             is CarelevoConnectCannulaEvent.ShowMessageCarelevoIsNotConnected -> event
             is CarelevoConnectCannulaEvent.ShowMessageProfileNotSet -> event
@@ -84,7 +84,7 @@ class CarelevoConnectCannulaViewModel @Inject constructor(
         }
     }
 
-    private fun setUiState(state : State) {
+    private fun setUiState(state: State) {
         viewModelScope.launch {
             _uiState.tryEmit(state)
         }
@@ -100,11 +100,11 @@ class CarelevoConnectCannulaViewModel @Inject constructor(
     }
 
     fun startCheckCannula() {
-        if(!carelevoPatch.isBluetoothEnabled()) {
+        if (!carelevoPatch.isBluetoothEnabled()) {
             triggerEvent(CarelevoConnectCannulaEvent.ShowMessageBluetoothNotEnabled)
             return
         }
-        if(!carelevoPatch.isCarelevoConnected()) {
+        if (!carelevoPatch.isCarelevoConnected()) {
             triggerEvent(CarelevoConnectCannulaEvent.ShowMessageCarelevoIsNotConnected)
             return
         }
@@ -119,22 +119,24 @@ class CarelevoConnectCannulaViewModel @Inject constructor(
                 setUiState(UiState.Idle)
                 triggerEvent(CarelevoConnectCannulaEvent.CheckCannulaFailed)
             }.subscribe { response ->
-                when(response) {
+                when (response) {
                     is ResponseResult.Success -> {
                         val result = response.data
                         Log.d("connect_test", "[CarelevoConnectCannulaViewModel::startCheckCannula] response success result ==> $result")
                         setUiState(UiState.Idle)
-                        if(result is ResultSuccess) {
+                        if (result is ResultSuccess) {
                             triggerEvent(CarelevoConnectCannulaEvent.CheckCannulaComplete(true))
-                        } else if(result is ResultFailed) {
+                        } else if (result is ResultFailed) {
                             triggerEvent(CarelevoConnectCannulaEvent.CheckCannulaComplete(false))
                         }
                     }
+
                     is ResponseResult.Error -> {
                         Log.d("connect_test", "[CarelevoConnectCannulaViewModel::startCheckCannula] response error : ${response.e}")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectCannulaEvent.CheckCannulaFailed)
                     }
+
                     else -> {
                         Log.d("connect_test", "[CarelevoConnectCannulaViewModel::startCheckCannula] response failed")
                         setUiState(UiState.Idle)
@@ -145,15 +147,15 @@ class CarelevoConnectCannulaViewModel @Inject constructor(
     }
 
     fun startSetBasal() {
-        if(!carelevoPatch.isBluetoothEnabled()) {
+        if (!carelevoPatch.isBluetoothEnabled()) {
             triggerEvent(CarelevoConnectCannulaEvent.ShowMessageBluetoothNotEnabled)
             return
         }
-        if(!carelevoPatch.isCarelevoConnected()) {
+        if (!carelevoPatch.isCarelevoConnected()) {
             triggerEvent(CarelevoConnectCannulaEvent.ShowMessageCarelevoIsNotConnected)
             return
         }
-        if(carelevoPatch.profile.value == null) {
+        if (carelevoPatch.profile.value == null) {
             triggerEvent(CarelevoConnectCannulaEvent.ShowMessageProfileNotSet)
             return
         }
@@ -168,7 +170,7 @@ class CarelevoConnectCannulaViewModel @Inject constructor(
                     setUiState(UiState.Idle)
                     triggerEvent(CarelevoConnectCannulaEvent.SetBasalFailed)
                 }.subscribe { response ->
-                    when(response) {
+                    when (response) {
                         is ResponseResult.Success -> {
                             Log.d("connect_test", "[CarelevoConnectCannulaViewModel::startSetBasal] response success")
                             pumpSync.connectNewPump(true)
@@ -181,11 +183,13 @@ class CarelevoConnectCannulaViewModel @Inject constructor(
                             setUiState(UiState.Idle)
                             triggerEvent(CarelevoConnectCannulaEvent.SetBasalComplete)
                         }
+
                         is ResponseResult.Error -> {
                             Log.d("connect_test", "[CarelevoConnectCannulaViewModel::startSetBasal] response error : ${response.e}")
                             setUiState(UiState.Idle)
                             triggerEvent(CarelevoConnectCannulaEvent.SetBasalFailed)
                         }
+
                         else -> {
                             Log.d("connect_test", "[CarelevoConnectCannulaViewModel::startSetBasal] response failed")
                             setUiState(UiState.Idle)
@@ -199,7 +203,7 @@ class CarelevoConnectCannulaViewModel @Inject constructor(
     }
 
     fun startDiscardProcess() {
-        if(!carelevoPatch.isCarelevoConnected()) {
+        if (!carelevoPatch.isCarelevoConnected()) {
             startForceDiscard()
         } else {
             startDiscard()
@@ -217,7 +221,7 @@ class CarelevoConnectCannulaViewModel @Inject constructor(
                 setUiState(UiState.Idle)
                 triggerEvent(CarelevoConnectCannulaEvent.DiscardFailed)
             }.subscribe { response ->
-                when(response) {
+                when (response) {
                     is ResponseResult.Success -> {
                         Log.d("connect_test", "[CarelevoConnectCannulaViewModel::startDiscard] response success")
                         bleController.unBondDevice()
@@ -225,11 +229,13 @@ class CarelevoConnectCannulaViewModel @Inject constructor(
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectCannulaEvent.DiscardComplete)
                     }
+
                     is ResponseResult.Error -> {
                         Log.d("connect_test", "[CarelevoConnectCannulaViewModel::startDiscard] response error : ${response.e}")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectCannulaEvent.DiscardFailed)
                     }
+
                     else -> {
                         Log.d("connect_test", "[CarelevoConnectCannulaViewModel::startDiscard] response failed")
                         setUiState(UiState.Idle)
@@ -250,7 +256,7 @@ class CarelevoConnectCannulaViewModel @Inject constructor(
                 setUiState(UiState.Idle)
                 triggerEvent(CarelevoConnectCannulaEvent.DiscardFailed)
             }.subscribe { response ->
-                when(response) {
+                when (response) {
                     is ResponseResult.Success -> {
                         Log.d("connect_test", "[CarelevoConnectCannulaViewModel::startForceDiscard] response success")
                         bleController.unBondDevice()
@@ -258,11 +264,13 @@ class CarelevoConnectCannulaViewModel @Inject constructor(
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectCannulaEvent.DiscardComplete)
                     }
+
                     is ResponseResult.Error -> {
                         Log.d("connect_test", "[CarelevoConnectCannulaViewModel::startForceDiscard] response error : ${response.e}")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectCannulaEvent.DiscardFailed)
                     }
+
                     else -> {
                         Log.d("connect_test", "[CarelevoConnectCannulaViewModel::startForceDiscard] response failed")
                         setUiState(UiState.Idle)

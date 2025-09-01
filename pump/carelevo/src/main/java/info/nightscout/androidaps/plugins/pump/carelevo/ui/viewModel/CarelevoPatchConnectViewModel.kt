@@ -46,21 +46,18 @@ import javax.inject.Inject
 import javax.inject.Named
 import kotlin.jvm.optionals.getOrNull
 
-class CarelevoConnectPrepareViewModel @Inject constructor(
+class CarelevoPatchConnectViewModel @Inject constructor(
     private val aapsSchedulers: AapsSchedulers,
-    private val carelevoPatch : CarelevoPatch,
-    private val bleController : CarelevoBleController,
+    private val carelevoPatch: CarelevoPatch,
+    private val bleController: CarelevoBleController,
     private val connectNewPatchUseCase: CarelevoConnectNewPatchUseCase,
-    private val patchDiscardUseCase : CarelevoPatchDiscardUseCase,
-    private val patchForceDiscardUseCase : CarelevoPatchForceDiscardUseCase
+    private val patchDiscardUseCase: CarelevoPatchDiscardUseCase,
+    private val patchForceDiscardUseCase: CarelevoPatchForceDiscardUseCase
 ) : ViewModel() {
 
-    @Inject @Named("characterTx") lateinit var txUuid : UUID
+    @Inject @Named("characterTx") lateinit var txUuid: UUID
 
-    private var _isCreated = false
-    val isCreated get() = _isCreated
-
-    private var _selectedDevice : ScannedDevice? = null
+    private var _selectedDevice: ScannedDevice? = null
     val selectedDevice get() = _selectedDevice
 
     private var _isScanWorking = false
@@ -71,30 +68,31 @@ class CarelevoConnectPrepareViewModel @Inject constructor(
     private val _event = MutableEventFlow<Event>()
     val event = _event.asEventFlow()
 
-    private val _uiState : MutableStateFlow<State> = MutableStateFlow(UiState.Idle)
+    private val _uiState: MutableStateFlow<State> = MutableStateFlow(UiState.Idle)
     val uiState = _uiState.asStateFlow()
-
-    private var _inputInsulin = 300
-    val inputInsulin get() = _inputInsulin
 
     private val compositeDisposable = CompositeDisposable()
 
     private val connectDisposable = CompositeDisposable()
 
-    fun setIsCreated(isCreated : Boolean) {
-        _isCreated = isCreated
+    init {
+        observeScannedDevice()
+    }
+
+    private fun setUiState(state: State) {
+        _uiState.tryEmit(state)
     }
 
     fun triggerEvent(event: Event) {
         viewModelScope.launch {
-            when(event) {
+            when (event) {
                 is CarelevoConnectPrepareEvent -> generateEventType(event).run { _event.emit(this) }
             }
         }
     }
 
-    private fun generateEventType(event : Event) : Event {
-        return when(event) {
+    private fun generateEventType(event: Event): Event {
+        return when (event) {
             is CarelevoConnectPrepareEvent.ShowConnectDialog -> event
             is CarelevoConnectPrepareEvent.ShowMessageScanFailed -> event
             is CarelevoConnectPrepareEvent.ShowMessageScanIsWorking -> event
@@ -109,19 +107,15 @@ class CarelevoConnectPrepareViewModel @Inject constructor(
         }
     }
 
-    private fun setUiState(state : State) {
-        _uiState.tryEmit(state)
-    }
-
     fun observeScannedDevice() {
         compositeDisposable += CarelevoBleSource.scanDevices
             .observeOn(aapsSchedulers.io)
             .subscribeOn(aapsSchedulers.io)
             .subscribe {
                 Log.d("connect_test", "[CarelevoConnectPrepareViewModel::observeScannedDeviceTest] device : $it")
-                if(it is PeripheralScanResult.Success) {
+                if (it is PeripheralScanResult.Success) {
                     val result = it.value
-                    if(result.isNotEmpty()) {
+                    if (result.isNotEmpty()) {
                         _selectedDevice = result[0]
                     }
                 }
@@ -129,11 +123,11 @@ class CarelevoConnectPrepareViewModel @Inject constructor(
     }
 
     fun startScan() {
-        if(!bleController.isBluetoothEnabled()) {
+        if (!bleController.isBluetoothEnabled()) {
             triggerEvent(CarelevoConnectPrepareEvent.ShowMessageBluetoothNotEnabled)
             return
         }
-        if(isScanWorking) {
+        if (isScanWorking) {
             triggerEvent(CarelevoConnectPrepareEvent.ShowMessageScanIsWorking)
             return
         }
@@ -156,7 +150,7 @@ class CarelevoConnectPrepareViewModel @Inject constructor(
             .observeOn(aapsSchedulers.io)
             .subscribe { result ->
                 _isScanWorking = false
-                if(selectedDevice != null) {
+                if (selectedDevice != null) {
                     triggerEvent(CarelevoConnectPrepareEvent.ShowConnectDialog)
                 } else {
                     triggerEvent(CarelevoConnectPrepareEvent.ShowMessageScanFailed)
@@ -164,18 +158,16 @@ class CarelevoConnectPrepareViewModel @Inject constructor(
             }
     }
 
-    fun setInputInsulin(insulin : Int) {
-        _inputInsulin = insulin
-    }
-
     fun startPatchDiscardProcess() {
-        when(carelevoPatch.patchState.value?.getOrNull()) {
+        when (carelevoPatch.patchState.value?.getOrNull()) {
             is PatchState.ConnectedBooted -> {
                 startPatchDiscard()
             }
+
             is PatchState.NotConnectedNotBooting, null -> {
                 triggerEvent(CarelevoConnectPrepareEvent.DiscardComplete)
             }
+
             else -> {
                 startPatchForceDiscard()
             }
@@ -193,7 +185,7 @@ class CarelevoConnectPrepareViewModel @Inject constructor(
                 setUiState(UiState.Idle)
                 triggerEvent(CarelevoConnectPrepareEvent.DiscardFailed)
             }.subscribe { response ->
-                when(response) {
+                when (response) {
                     is ResponseResult.Success -> {
                         Log.d("connect_test", "[CarelevoConnectPrepareViewModel::startPatchDiscard] response success")
                         bleController.unBondDevice()
@@ -201,11 +193,13 @@ class CarelevoConnectPrepareViewModel @Inject constructor(
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectPrepareEvent.DiscardComplete)
                     }
+
                     is ResponseResult.Error -> {
                         Log.d("connect_test", "[CarelevoConnectPrepareViewModel::startPatchDiscard] response error : ${response.e}")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectPrepareEvent.DiscardFailed)
                     }
+
                     else -> {
                         Log.d("connect_test", "[CarelevoConnectPrepareViewModel::startPatchDiscard] response failed")
                         setUiState(UiState.Idle)
@@ -226,7 +220,7 @@ class CarelevoConnectPrepareViewModel @Inject constructor(
                 setUiState(UiState.Idle)
                 triggerEvent(CarelevoConnectPrepareEvent.DiscardFailed)
             }.subscribe { response ->
-                when(response) {
+                when (response) {
                     is ResponseResult.Success -> {
                         Log.d("connect_test", "[CarelevoConnectPrepareViewModel::startPatchForceDiscard] response success")
                         bleController.unBondDevice()
@@ -234,11 +228,13 @@ class CarelevoConnectPrepareViewModel @Inject constructor(
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectPrepareEvent.DiscardComplete)
                     }
+
                     is ResponseResult.Error -> {
                         Log.d("connect_test", "[CarelevoConnectPrepareViewModel::startPatchForceDiscard] response error : ${response.e}")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectPrepareEvent.DiscardFailed)
                     }
+
                     else -> {
                         Log.d("connect_test", "[CarelevoConnectPrepareViewMode;::startPatchForceDiscard] response failed")
                         setUiState(UiState.Idle)
@@ -248,13 +244,13 @@ class CarelevoConnectPrepareViewModel @Inject constructor(
             }
     }
 
-    fun startConnect() {
+    fun startConnect(inputInsulin: Int) {
         Log.d("connect_test", "[CarelevoConnectPrepareViewModel::startConnectTest] startConnectTest called")
-        if(!bleController.isBluetoothEnabled()) {
+        if (!bleController.isBluetoothEnabled()) {
             triggerEvent(CarelevoConnectPrepareEvent.ShowMessageBluetoothNotEnabled)
             return
         }
-        if(selectedDevice == null) {
+        if (selectedDevice == null) {
             triggerEvent(CarelevoConnectPrepareEvent.ShowMessageSelectedDeviceIseEmpty)
             return
         }
@@ -266,10 +262,11 @@ class CarelevoConnectPrepareViewModel @Inject constructor(
             .observeOn(aapsSchedulers.io)
             .subscribeOn(aapsSchedulers.io)
             .subscribe { result ->
-                when(result) {
+                when (result) {
                     is CommandResult.Success -> {
                         Log.d("connect_test", "[CarelevoConnectPrepareViewModel::startConnect] connect result success")
                     }
+
                     else -> {
                         Log.d("connect_test", "[CarelevoConnectPrepareViewModel::startConnect] connect result failed")
                         stopConnect()
@@ -285,7 +282,7 @@ class CarelevoConnectPrepareViewModel @Inject constructor(
 
                 Log.d("connect_test", "[CarelevoConnectPrepareViewModel::startConnect] bt state : $btState")
                 btState?.getOrNull()?.let { state ->
-                    if(state.shouldBeConnected()) {
+                    if (state.shouldBeConnected()) {
                         Log.d("connect_test", "[CarelevoConnectPrepareViewModel::startConnect] should be connected called")
                         Thread.sleep(commandDelay)
                         bleController.execute(DiscoveryService(address))
@@ -294,7 +291,7 @@ class CarelevoConnectPrepareViewModel @Inject constructor(
                             ?.let { stopConnect() }
                     }
 
-                    if(state.shouldBeDiscovered()) {
+                    if (state.shouldBeDiscovered()) {
                         Log.d("connect_test", "[CarelevoConnectPrepareViewModel::startConnect] should be discovered called")
                         Thread.sleep(commandDelay)
                         bleController.execute(EnableNotifications(address, txUuid))
@@ -303,36 +300,36 @@ class CarelevoConnectPrepareViewModel @Inject constructor(
                             ?.let { stopConnect() }
                     }
 
-                    if(state.shouldBeNotificationEnabled()) {
+                    if (state.shouldBeNotificationEnabled()) {
                         Log.d("connect_test", "[CarelevoConnectPrepareViewModel::startConnect] should be notification enabled called")
                         Thread.sleep(commandDelay)
-                        connectNewPatch()
+                        connectNewPatch(inputInsulin)
                     }
-                    if(state.isDiscoverCleared()) {
+                    if (state.isDiscoverCleared()) {
                         Log.d("connect_test", "[CarelevoConnectPrepareViewModel::startConnect] is discover cleared called")
                         Thread.sleep(commandDelay)
                         bleController.clearGatt()
                         stopConnect()
                     }
-                    if(state.isAbnormalFailed()) {
+                    if (state.isAbnormalFailed()) {
                         Log.d("connect_test", "[CarelevoConnectPrepareViewModel::startConnect] is abnormal failed called")
                         Thread.sleep(commandDelay)
                         bleController.clearGatt()
                         stopConnect()
                     }
-                    if(state.isAbnormalBondingFailed()) {
+                    if (state.isAbnormalBondingFailed()) {
                         Log.d("connect_test", "[CarelevoConnectPrepareViewModel::startConnect] is abnormal bonding failed called")
                         Thread.sleep(commandDelay)
                         bleController.clearGatt()
                         stopConnect()
                     }
-                    if(state.isReInitialized()) {
+                    if (state.isReInitialized()) {
                         Log.d("connect_test", "[CarelevoConnectPrepareViewModel::startConnect] is reinitialized called")
                         Thread.sleep(commandDelay)
                         bleController.clearGatt()
                         stopConnect()
                     }
-                    if(state.isPairingFailed()) {
+                    if (state.isPairingFailed()) {
                         Log.d("connect_test", "[CarelevoConnectPrepareViewModel::startConnect] is pairing failed called")
                         Thread.sleep(commandDelay)
                         bleController.clearGatt()
@@ -348,10 +345,10 @@ class CarelevoConnectPrepareViewModel @Inject constructor(
         setUiState(UiState.Idle)
     }
 
-    private fun connectNewPatch() {
+    private fun connectNewPatch(inputInsulin: Int) {
         Log.d("connect_test", "[CarelevoConnectPrepareViewModel::connectNewPatch] connectNewPatch called")
 
-        if(!bleController.isBluetoothEnabled()) {
+        if (!bleController.isBluetoothEnabled()) {
             Log.d("connect_test", "[CarelevoConnectPrepareViewModel::connectNewPatch] bluetooth is not enabled")
             setUiState(UiState.Idle)
             triggerEvent(CarelevoConnectPrepareEvent.ShowMessageBluetoothNotEnabled)
@@ -359,7 +356,7 @@ class CarelevoConnectPrepareViewModel @Inject constructor(
         }
 
         val userSettingInfo = carelevoPatch.userSettingInfo.value?.getOrNull()
-        if(userSettingInfo == null) {
+        if (userSettingInfo == null) {
             Log.d("connect_test", "[CarelevoConnectPrepareViewModel::connectNewPatch] userSettingInfo is null")
             setUiState(UiState.Idle)
             triggerEvent(CarelevoConnectPrepareEvent.ShowMessageNotSetUserSettingInfo)
@@ -378,17 +375,19 @@ class CarelevoConnectPrepareViewModel @Inject constructor(
             .observeOn(aapsSchedulers.io)
             .subscribeOn(aapsSchedulers.io)
             .subscribe { response ->
-                when(response) {
+                when (response) {
                     is ResponseResult.Success -> {
                         Log.d("connect_test", "[CarelevoConnectPrepareViewModel::connectNewPatch] response success")
                         triggerEvent(CarelevoConnectPrepareEvent.ConnectComplete)
                         setUiState(UiState.Idle)
                     }
+
                     is ResponseResult.Error -> {
                         Log.d("connect_test", "[CarelevoConnectPrepareViewModel::connectNewPatch] response error : ${response.e}")
                         triggerEvent(CarelevoConnectPrepareEvent.ConnectFailed)
                         setUiState(UiState.Idle)
                     }
+
                     else -> {
                         Log.d("connect_test", "[CarelevoConnectPrepareViewModel::connectNewPatch] response failed")
                         triggerEvent(CarelevoConnectPrepareEvent.ConnectFailed)
@@ -396,11 +395,5 @@ class CarelevoConnectPrepareViewModel @Inject constructor(
                     }
                 }
             }
-    }
-
-    override fun onCleared() {
-        connectDisposable.clear()
-        compositeDisposable.clear()
-        super.onCleared()
     }
 }

@@ -1,5 +1,6 @@
 package info.nightscout.androidaps.plugins.pump.carelevo.domain
 
+import android.util.Log
 import app.aaps.core.interfaces.rx.AapsSchedulers
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.ResponseResult
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.bt.PatchResultModel
@@ -16,24 +17,24 @@ import io.reactivex.rxjava3.subjects.PublishSubject
 import javax.inject.Inject
 
 class CarelevoPatchObserver @Inject constructor(
-    private val patchRepository : CarelevoPatchRepository,
-    private val basalRepository : CarelevoBasalRepository,
-    private val bolusRepository : CarelevoBolusRepository,
+    private val patchRepository: CarelevoPatchRepository,
+    private val basalRepository: CarelevoBasalRepository,
+    private val bolusRepository: CarelevoBolusRepository,
     private val aapsSchedulers: AapsSchedulers
 ) {
 
     private val bleDisposable = CompositeDisposable()
 
-    private val _patchEvent : PublishSubject<PatchResultModel> = PublishSubject.create()
+    private val _patchEvent: PublishSubject<PatchResultModel> = PublishSubject.create()
     internal val patchEvent get() = _patchEvent
 
-    private val _basalEvent : PublishSubject<PatchResultModel> = PublishSubject.create()
+    private val _basalEvent: PublishSubject<PatchResultModel> = PublishSubject.create()
     internal val basalEvent get() = _basalEvent
 
-    private val _bolusEvent : PublishSubject<PatchResultModel> = PublishSubject.create()
+    private val _bolusEvent: PublishSubject<PatchResultModel> = PublishSubject.create()
     internal val bolusEvent get() = _bolusEvent
 
-    private val _patchResponseEvent : PublishSubject<PatchResultModel> = PublishSubject.create()
+    private val _patchResponseEvent: PublishSubject<PatchResultModel> = PublishSubject.create()
     internal val patchResponseEvent get() = _patchResponseEvent
 
     private var _isObserverWorking = false
@@ -46,7 +47,7 @@ class CarelevoPatchObserver @Inject constructor(
     }
 
     private fun initPatchObserver() {
-        if(!isObserverWorking) {
+        if (!isObserverWorking) {
             observePatch()
             observeBasal()
             observeBolus()
@@ -58,9 +59,10 @@ class CarelevoPatchObserver @Inject constructor(
         bleDisposable += patchRepository.getResponseResult()
             .observeOn(observeSchedulers)
             .subscribe { result ->
-                if(result is ResponseResult.Success) {
+                if (result is ResponseResult.Success) {
                     result.data?.let {
                         createPatchResultModel(it)?.let { model ->
+                            Log.d("알람", "model: $model")
                             _patchEvent.onNext(model)
                             _patchResponseEvent.onNext(model)
                         }
@@ -73,7 +75,7 @@ class CarelevoPatchObserver @Inject constructor(
         bleDisposable += basalRepository.getResponseResult()
             .observeOn(observeSchedulers)
             .subscribe { result ->
-                if(result is ResponseResult.Success) {
+                if (result is ResponseResult.Success) {
                     result.data?.let {
                         createBasalResultModel(it)?.let { model ->
                             _basalEvent.onNext(model)
@@ -88,7 +90,7 @@ class CarelevoPatchObserver @Inject constructor(
         bleDisposable += bolusRepository.getResponseResult()
             .observeOn(observeSchedulers)
             .subscribe { result ->
-                if(result is ResponseResult.Success) {
+                if (result is ResponseResult.Success) {
                     result.data?.let {
                         createBolusResultModel(it)?.let { model ->
                             _bolusEvent.onNext(model)
@@ -100,7 +102,7 @@ class CarelevoPatchObserver @Inject constructor(
     }
 
     private fun releaseObserver() {
-        if(isObserverWorking) {
+        if (isObserverWorking) {
             bleDisposable.clear()
             _isObserverWorking = false
         }

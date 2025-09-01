@@ -9,11 +9,12 @@ import dagger.multibindings.IntoMap
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.base.CarelevoViewModelFactory
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.base.ViewModelKey
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoCommunicationCheckViewModel
-import info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoConnectCannulaViewModel
-import info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoConnectPrepareViewModel
-import info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoConnectSafetyCheckViewModel
-import info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoConnectViewModel
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoOverviewViewModel
+import info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoPatchConnectViewModel
+import info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoPatchConnectionFlowViewModel
+import info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoPatchNeedleInsertionViewModel
+import info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoPatchSafetyCheckViewModel
+import info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoPatchStartViewModel
 import javax.inject.Provider
 
 @Module
@@ -25,7 +26,7 @@ abstract class CarelevoViewModelModule {
         @CarelevoPluginQualifier
         fun provideViewModelFactory(
             @CarelevoPluginQualifier viewModels: MutableMap<Class<out ViewModel>, @JvmSuppressWildcards Provider<ViewModel>>
-        ) : ViewModelProvider.Factory {
+        ): ViewModelProvider.Factory {
             return CarelevoViewModelFactory(viewModels)
         }
     }
@@ -34,35 +35,41 @@ abstract class CarelevoViewModelModule {
     @IntoMap
     @CarelevoPluginQualifier
     @ViewModelKey(CarelevoOverviewViewModel::class)
-    abstract fun bindCarelevoOverviewViewModel(carelevoOverviewViewModel : CarelevoOverviewViewModel) : ViewModel
+    abstract fun bindCarelevoOverviewViewModel(carelevoOverviewViewModel: CarelevoOverviewViewModel): ViewModel
 
     @Binds
     @IntoMap
     @CarelevoPluginQualifier
-    @ViewModelKey(CarelevoConnectViewModel::class)
-    abstract fun bindCarelevoConnectViewModel(carelevoConnectViewModel : CarelevoConnectViewModel) : ViewModel
+    @ViewModelKey(CarelevoPatchConnectionFlowViewModel::class)
+    abstract fun bindCarelevoConnectViewModel(carelevoConnectViewModel: CarelevoPatchConnectionFlowViewModel): ViewModel
 
     @Binds
     @IntoMap
     @CarelevoPluginQualifier
-    @ViewModelKey(CarelevoConnectPrepareViewModel::class)
-    abstract fun bindCarelevoConnectPrepareViewModel(carelevoConnectPrepareViewModel: CarelevoConnectPrepareViewModel) : ViewModel
+    @ViewModelKey(CarelevoPatchStartViewModel::class)
+    abstract fun bindCarelevoConnectPrepareViewModel(carelevoConnectPrepareViewModel: CarelevoPatchStartViewModel): ViewModel
 
     @Binds
     @IntoMap
     @CarelevoPluginQualifier
-    @ViewModelKey(CarelevoConnectSafetyCheckViewModel::class)
-    abstract fun bindCarelevoConnectSafetyCheckViewModel(carelevoConnectSafetyCheckViewModel : CarelevoConnectSafetyCheckViewModel) : ViewModel
+    @ViewModelKey(CarelevoPatchSafetyCheckViewModel::class)
+    abstract fun bindCarelevoConnectSafetyCheckViewModel(carelevoConnectSafetyCheckViewModel: CarelevoPatchSafetyCheckViewModel): ViewModel
 
     @Binds
     @IntoMap
     @CarelevoPluginQualifier
-    @ViewModelKey(CarelevoConnectCannulaViewModel::class)
-    abstract fun bindCarelevoConnectCannulaViewModel(carelevoConnectCannulaViewModel : CarelevoConnectCannulaViewModel) : ViewModel
+    @ViewModelKey(CarelevoPatchNeedleInsertionViewModel::class)
+    abstract fun bindCarelevoConnectCannulaViewModel(carelevoConnectCannulaViewModel: CarelevoPatchNeedleInsertionViewModel): ViewModel
 
     @Binds
     @IntoMap
     @CarelevoPluginQualifier
     @ViewModelKey(CarelevoCommunicationCheckViewModel::class)
-    abstract fun bindCarelevoCommunicationCheckViewModel(carelevoCommunicationCheckViewModel : CarelevoCommunicationCheckViewModel) : ViewModel
+    abstract fun bindCarelevoCommunicationCheckViewModel(carelevoCommunicationCheckViewModel: CarelevoCommunicationCheckViewModel): ViewModel
+
+    @Binds
+    @IntoMap
+    @CarelevoPluginQualifier
+    @ViewModelKey(CarelevoPatchConnectViewModel::class)
+    abstract fun bindCarelevoConnectPatchViewModel(viewModel: CarelevoPatchConnectViewModel): ViewModel
 }
