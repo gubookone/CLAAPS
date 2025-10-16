@@ -1,9 +1,7 @@
 package info.nightscout.androidaps.plugins.pump.carelevo.domain.model.bt
 
-import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.bt.AlertMessageResult.Companion.codeToAlertMessageCommand
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.bt.InfusionInfoResult.Companion.codeToInfusionInfoCommand
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.bt.InfusionModeResult.Companion.codeToInfusionModeCommand
-import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.bt.NoticeMessageResult.Companion.codeToNoticeMessageCommand
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.bt.PumpStateResult.Companion.codeToPumpStateCommand
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.bt.Result.Companion.codeToResultCommand
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.bt.SafetyCheckResult.Companion.codeToSafetyCheckCommand
@@ -155,12 +153,12 @@ data class WarningReportResultModel(
 ) : PatchResultModel
 
 data class AlertReportResultModel(
-    val cause: AlertMessageResult,
+    val cause: AlarmCause,
     val value: Int
 ) : PatchResultModel
 
 data class NoticeReportResultModel(
-    val cause: NoticeMessageResult,
+    val cause: AlarmCause,
     val value: Int
 ) : PatchResultModel
 
@@ -173,6 +171,10 @@ data class AlertAlarmSetResultModel(
 ) : PatchResultModel
 
 data class AppAuthAckResultModel(
+    val result: Result
+) : PatchResultModel
+
+data class AppAlarmClearResultModel(
     val result: Result
 ) : PatchResultModel
 
@@ -272,17 +274,17 @@ internal fun createPatchResultModel(response: BtResponse): PatchResultModel? {
     } else if (isPatchProtocol(response.command) && response is WarningReportResponse) {
         WarningReportResultModel(
             //response.cause.codeToWarningMessageCommand(),
-            AlarmCause.fromTypeAndCode(AlarmType.fromCode(response.value), response.cause),
+            AlarmCause.fromTypeAndCode(AlarmType.WARNING, response.cause),
             response.value
         )
     } else if (isPatchProtocol(response.command) && response is AlertReportResponse) {
         AlertReportResultModel(
-            response.cause.codeToAlertMessageCommand(),
+            AlarmCause.fromTypeAndCode(AlarmType.ALERT, response.cause),
             response.value
         )
     } else if (isPatchProtocol(response.command) && response is NoticeReportResponse) {
         NoticeReportResultModel(
-            response.cause.codeToNoticeMessageCommand(),
+            AlarmCause.fromTypeAndCode(AlarmType.NOTICE, response.cause),
             response.value
         )
     } else if (isPatchProtocol(response.command) && response is AppAuthRptResponse) {
@@ -298,6 +300,8 @@ internal fun createPatchResultModel(response: BtResponse): PatchResultModel? {
         AlertAlarmSetResultModel(response.result.codeToResultCommand())
     } else if (isPatchProtocol(response.command) && response is AppAuthAckRptResponse) {
         AppAuthAckResultModel(response.result.codeToResultCommand())
+    } else if (isPatchProtocol(response.command) && response is AppAlarmOffResponse) {
+        AppAlarmClearResultModel(response.result.codeToResultCommand())
     } else {
         null
     }

@@ -1,0 +1,71 @@
+package info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.alarm
+
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.CarelevoPatchObserver
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.RequestResult
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.ResponseResult
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.bt.DiscardPatchResultModel
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.bt.Result
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.result.ResultFailed
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.result.ResultSuccess
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.CarelevoAlarmInfoRepository
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.CarelevoPatchRepository
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.CarelevoUseCaseRequest
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.CarelevoUseCaseResponse
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.alarm.model.AlarmClearUseCaseRequest
+import io.reactivex.rxjava3.core.Single
+import io.reactivex.rxjava3.kotlin.ofType
+import io.reactivex.rxjava3.schedulers.Schedulers
+import java.time.LocalDateTime
+
+class AlarmClearPatchDiscardUseCase(
+    private val patchObserver: CarelevoPatchObserver,
+    private val patchRepository: CarelevoPatchRepository,
+    private val alarmRepository: CarelevoAlarmInfoRepository
+) {
+
+    fun execute(request: CarelevoUseCaseRequest): Single<ResponseResult<CarelevoUseCaseResponse>> {
+        return Single.fromCallable {
+            runCatching {
+                val req = request as? AlarmClearUseCaseRequest
+                    ?: throw IllegalArgumentException("request is not AlarmClearUseCaseRequest")
+
+                // 1) 이벤트 대기 먼저 세팅
+                val clearEventSingle = patchObserver.patchEvent
+                    .ofType<DiscardPatchResultModel>()
+                    .firstOrError()
+                    .timeout(10, java.util.concurrent.TimeUnit.SECONDS)
+
+                // 2) SetAlarmClear 요청
+                when (val result = patchRepository.requestDiscardPatch().blockingGet()) {
+                    is RequestResult.Pending<*> -> Unit
+                    is RequestResult.Success<*> -> throw IllegalStateException("request set alarm clear returned Success (expected Pending)")
+                    is RequestResult.Failure    -> throw IllegalStateException("request set alarm clear failed: ${result.message}")
+                    is RequestResult.Error      -> throw result.e
+                }
+
+                // 3) 결과 이벤트 대기
+                val clearResult = clearEventSingle.blockingGet()
+
+                // 4) 결과 처리
+                if (clearResult.result == Result.SUCCESS) {
+                    alarmRepository.markAcknowledged(
+                        alarmId = req.alarmId,
+                        acknowledged = true,
+                        updatedAt = LocalDateTime.now().toString()
+                    ).blockingAwait()
+
+                    ResultSuccess
+                } else {
+                    ResultFailed
+                }
+            }.fold(
+                onSuccess = {
+                    ResponseResult.Success(it)
+                },
+                onFailure = {
+                    ResponseResult.Error(it)
+                }
+            )
+        }.observeOn(Schedulers.io())
+    }
+}

@@ -2,31 +2,27 @@ package info.nightscout.androidaps.plugins.pump.carelevo.data.mapper
 
 import info.nightscout.androidaps.plugins.pump.carelevo.data.model.entities.CarelevoAlarmInfoEntity
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.alarm.CarelevoAlarmInfo
-
-/*
- * Project   : CareLevoAAPS
- * File      : CarelevoAlarmInfoMapper
- * Package   : info.nightscout.androidaps.plugins.pump.carelevo.data.mapper
- * Created   : 2025. 9. 4. PM 5:06
- */
-
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.type.AlarmType
 
 fun CarelevoAlarmInfoEntity.transformToDomainModel(): CarelevoAlarmInfo =
     CarelevoAlarmInfo(
         alarmId = alarmId,
-        alarmType = alarmType,
+        alarmType = AlarmType.fromCode(alarmType),
         cause = cause,
+        value = value,
         createdAt = createdAt,
         updatedAt = updatedAt,
-        acknowledged = acknowledged
+        isAcknowledged = acknowledged,
+        occurrenceCount = occurrenceCount
     )
 
 fun CarelevoAlarmInfo.transformToEntity(): CarelevoAlarmInfoEntity =
     CarelevoAlarmInfoEntity(
         alarmId = alarmId,
-        alarmType = alarmType,
+        alarmType = AlarmType.fromAlarmType(alarmType),
         cause = cause,
+        value = value,
         createdAt = createdAt,
         updatedAt = updatedAt,
-        acknowledged = acknowledged
+        acknowledged = isAcknowledged,
     )

@@ -31,6 +31,7 @@ import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.bt.WarningR
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.infusion.CarelevoInfusionInfoDomainModel
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.patch.CarelevoPatchInfoDomainModel
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.userSetting.CarelevoUserSettingInfoDomainModel
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.type.AlarmCause
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.alarm.CarelevoAlarmInfoUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.infusion.CarelevoInfusionInfoMonitorUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.CarelevoPatchInfoMonitorUseCase
@@ -132,6 +133,10 @@ class CarelevoPatch @Inject constructor(
         return address != null && validAddress != null && isConnected && address.lowercase() == validAddress.lowercase()
     }
 
+    fun getPatchInfoAddress(): String? {
+        return patchInfo.value?.getOrNull()?.address
+    }
+
     fun getPatchState(): PatchState {
         val isPatchValid = patchInfo.value?.getOrNull()?.let { true } ?: false
         val isPeripheralConnected = btState.value?.getOrNull()?.isPeripheralConnected() ?: false
@@ -140,11 +145,11 @@ class CarelevoPatch @Inject constructor(
         Log.d("patch_state", "[CarelevoPatchRx::getPatchState] isPeripheralConnected : $isPeripheralConnected")
 
         val result = when {
-            isPeripheralConnected && isPatchValid -> PatchState.ConnectedBooted
-            isPeripheralConnected && !isPatchValid -> PatchState.NotConnectedNotBooting
-            !isPeripheralConnected && isPatchValid -> PatchState.NotConnectedBooted
+            isPeripheralConnected && isPatchValid   -> PatchState.ConnectedBooted
+            isPeripheralConnected && !isPatchValid  -> PatchState.NotConnectedNotBooting
+            !isPeripheralConnected && isPatchValid  -> PatchState.NotConnectedBooted
             !isPeripheralConnected && !isPatchValid -> PatchState.NotConnectedNotBooting
-            else -> PatchState.NotConnectedNotBooting
+            else                                    -> PatchState.NotConnectedNotBooting
         }
 
         Log.d("patch_state", "[CarelevoPatchRx::getPatchState] result : $result")
@@ -162,7 +167,7 @@ class CarelevoPatch @Inject constructor(
             val btPeripheralConnected = _bt.getOrNull()?.isPeripheralConnected()
 
             Log.d("patch_state", "[CarelevoPatchRx::changeState] btAvailable : $btAvailable")
-            Log.d("patch_state", "[CarlevoPatchRx::changeState] btPeripheralConnected : $btPeripheralConnected")
+            Log.d("patch_state", "[CarelevoPatchRx::changeState] btPeripheralConnected : $btPeripheralConnected")
 
             var result = getPatchState()
             if (result == PatchState.ConnectedBooted) {
@@ -182,12 +187,12 @@ class CarelevoPatch @Inject constructor(
                     Log.d("patch_test", "[CarelevoPatch::observeChangeState] patch state is no connection")
                 }
 
-                is PatchState.ConnectedBooted -> {
+                is PatchState.ConnectedBooted        -> {
                     Log.d("patch_test", "[CarelevoPatch::observeChangeState] patch state is ConnectedBooted")
                     rxBus.send(EventPumpStatusChanged(EventPumpStatusChanged.Status.CONNECTED))
                 }
 
-                else -> {
+                else                                 -> {
                     Log.d("patch_test", "[CarelevoPatch::observeChangeState] patch state is disconnected")
                     rxBus.send(EventPumpStatusChanged(EventPumpStatusChanged.Status.DISCONNECTED))
                 }
@@ -258,13 +263,21 @@ class CarelevoPatch @Inject constructor(
     private fun observeBleState() {
         bleDisposable += CarelevoBleSource.bluetoothState
             .observeOn(aapsSchedulers.io)
+            .distinctUntilChanged()
             .subscribe { state ->
-                if (state.isEnabled != DeviceModuleState.DEVICE_STATE_ON) {
-                    bleController.checkGatt()
-                    bleController.clearOnlyGatt()
+                Log.d("ble_observer", "[CarelevoPatchRx::observeBleState] state : $state")
+                if (state.isEnabled == DeviceModuleState.DEVICE_STATE_OFF) {
+                    if (_lastBtState != null && _lastBtState?.isEnabled != DeviceModuleState.DEVICE_STATE_OFF) {
+                        bleController.checkGatt()
+                        bleController.clearOnlyGatt()
+                        handleAlarm("alert", value = null, cause = AlarmCause.ALARM_ALERT_BLUETOOTH_OFF)
+                    }
+
                 }
+
                 _lastBtState = state
                 _btState.onNext(Optional.ofNullable(state))
+
             }
     }
 
@@ -272,7 +285,7 @@ class CarelevoPatch @Inject constructor(
         flushPatchInformation()
     }
 
-    private fun flushPatchInformation() {
+    fun flushPatchInformation() {
         bleController.clearGatt()
     }
 
@@ -286,42 +299,15 @@ class CarelevoPatch @Inject constructor(
 
     private fun proceedPatchEvent(model: PatchResultModel) {
         when (model) {
-            is BasalInfusionResumeResultModel -> {
+            is BasalInfusionResumeResultModel -> {}
 
-            }
+            is FinishPulseReportResultModel   -> {}
 
-            is FinishPulseReportResultModel -> {
+            is WarningReportResultModel       -> handleAlarm("warning", model.value, model.cause)
+            is AlertReportResultModel         -> handleAlarm("alert", model.value, model.cause)
+            is NoticeReportResultModel        -> handleAlarm("notice", model.value, model.cause)
 
-            }
-
-            is WarningReportResultModel -> {
-                Log.d("ble_observer", "[CarelevoPatchRx::proceedPatchEvent] warning report : ${model.value}, ${model.cause}")
-                val info = CarelevoAlarmInfo(
-                    alarmId = System.currentTimeMillis().toString(),
-                    alarmType = model.value,
-                    cause = model.cause,
-                    createdAt = LocalDateTime.now().toString(),
-                    updatedAt = LocalDateTime.now().toString(),
-                    acknowledged = false
-                )
-                bleDisposable += carelevoAlarmInfoUseCase.upsertAlarm(info)
-                    .subscribeOn(aapsSchedulers.io)
-                    .observeOn(aapsSchedulers.io)
-                    .subscribe(
-                        { Log.d("alarm", "upsert complete") },
-                        { e -> Log.e("alarm", "upsert error", e) }
-                    )
-            }
-
-            is AlertReportResultModel -> {
-                Log.d("ble_observer", "[CarelevoPatchRx::proceedPatchEvent] alert report : ${model.value}, ${model.cause}")
-            }
-
-            is NoticeReportResultModel -> {
-                Log.d("ble_observer", "[CarelevoPatchRx::proceedPatchEvent] notice report : ${model.value}, ${model.cause}")
-            }
-
-            is InfusionInfoReportResultModel -> {
+            is InfusionInfoReportResultModel  -> {
                 bleDisposable += patchRptInfusionInfoProcessUseCase.execute(
                     CarelevoPatchRptInfusionInfoRequestModel(
                         runningMinute = model.runningMinutes,
@@ -343,17 +329,37 @@ class CarelevoPatch @Inject constructor(
                                 Log.d("ble_observer", "[CarelevoPatchRx::proceedPatchEvent] response success")
                             }
 
-                            is ResponseResult.Error -> {
+                            is ResponseResult.Error   -> {
                                 Log.d("ble_observer", "[CarelevoPatchRx::proceedPatchEvent] response error : ${response.e}")
                             }
 
-                            else -> {
+                            else                      -> {
                                 Log.d("ble_observer", "[CarelevoPatchRx::proceedPatchEvent] response failed")
                             }
                         }
                     }
             }
         }
+    }
+
+    private fun handleAlarm(modelType: String, value: Int?, cause: AlarmCause) {
+        Log.d("ble_observer", "[CarelevoPatchRx::proceedPatchEvent] $modelType report : $value, $cause")
+        val info = CarelevoAlarmInfo(
+            alarmId = System.currentTimeMillis().toString(),
+            alarmType = cause.alarmType,
+            cause = cause,
+            value = value,
+            createdAt = LocalDateTime.now().toString(),
+            updatedAt = LocalDateTime.now().toString(),
+            isAcknowledged = false
+        )
+        bleDisposable += carelevoAlarmInfoUseCase.upsertAlarm(info)
+            .subscribeOn(aapsSchedulers.io)
+            .observeOn(aapsSchedulers.io)
+            .subscribe(
+                { Log.d("alarm", "upsert complete") },
+                { e -> Log.e("alarm", "upsert error", e) }
+            )
     }
 
     private fun observeInfusionInfo() {
@@ -368,11 +374,11 @@ class CarelevoPatch @Inject constructor(
                         _infusionInfo.onNext(Optional.ofNullable(result))
                     }
 
-                    is ResponseResult.Error -> {
+                    is ResponseResult.Error   -> {
                         Log.d("info_observer", "[CarelevoPatchRx::observeInfusionInfo] response error : ${response.e}")
                     }
 
-                    else -> {
+                    else                      -> {
                         Log.d("info_observer", "[CarelevoPatchRx::observeInfusionInfo] response failed")
                     }
                 }
@@ -391,11 +397,11 @@ class CarelevoPatch @Inject constructor(
                         _patchInfo.onNext(Optional.ofNullable(result))
                     }
 
-                    is ResponseResult.Error -> {
+                    is ResponseResult.Error   -> {
                         Log.d("info_observer", "[CarelevoPatchRx::observePatchInfo] response error : ${response.e}")
                     }
 
-                    else -> {
+                    else                      -> {
                         Log.d("info_observer", "[CarelevoPatchRx::observePatchInfo] response failed")
                     }
                 }
@@ -417,11 +423,11 @@ class CarelevoPatch @Inject constructor(
                         }
                     }
 
-                    is ResponseResult.Error -> {
+                    is ResponseResult.Error   -> {
                         Log.d("info_observer", "[CarelevoPatchRx::observeUserSettingInfo] response error : ${response.e}")
                     }
 
-                    else -> {
+                    else                      -> {
                         Log.d("info_observer", "[CarelevoPatchRx::observeUserSettingInfo] response failed")
                     }
                 }
@@ -441,11 +447,10 @@ class CarelevoPatch @Inject constructor(
             if (state.getOrNull() is PatchState.ConnectedBooted && (userSettingInfo?.getOrNull()?.needLowInsulinNoticeAmountSyncPatch == true)) {
                 updateLowInsulinNoticeAmount(userSettingInfo.getOrNull()?.lowInsulinNoticeAmount ?: 0)
             }
-        }
-            .observeOn(aapsSchedulers.io)
+        }.observeOn(aapsSchedulers.io)
             .subscribeOn(aapsSchedulers.io)
             .subscribe {
-
+                Log.d("info_observer", "[CarelevoPatchRx::observeSyncPatch] response success")
             }
     }
 
@@ -465,11 +470,11 @@ class CarelevoPatch @Inject constructor(
                         Log.d("info_observer", "[CarelevoPatchRx::updateMaxBolusDose] response success")
                     }
 
-                    is ResponseResult.Error -> {
+                    is ResponseResult.Error   -> {
                         Log.d("info_observer", "[CarelevoPatchRx::updateMaxBolusDose] response error : ${response.e}")
                     }
 
-                    else -> {
+                    else                      -> {
                         Log.d("info_observer", "[CarelevoPatchRx::updateMaxBolusDose] response failed")
                     }
                 }
@@ -492,11 +497,11 @@ class CarelevoPatch @Inject constructor(
                         Log.d("info_observer", "[CarelevoPatchRx::updateLowInsulinNoticeAmount] response success")
                     }
 
-                    is ResponseResult.Error -> {
+                    is ResponseResult.Error   -> {
                         Log.d("info_observer", "[CarelevoPatchRx::updateLowInsulinNoticeAmount] response error : ${response.e}")
                     }
 
-                    else -> {
+                    else                      -> {
                         Log.d("info_observer", "[CarelevoPatchRx::updateLowInsulinNoticeAmount] response failed")
                     }
                 }
@@ -521,11 +526,11 @@ class CarelevoPatch @Inject constructor(
                         Log.d("patch_test", "[CarelevoPatch::createUserSettingInfo] response success")
                     }
 
-                    is ResponseResult.Error -> {
+                    is ResponseResult.Error   -> {
                         Log.d("patch_test", "[CarelevoPatch::createUserSettingInfo] response error : ${response.e}")
                     }
 
-                    else -> {
+                    else                      -> {
                         Log.d("patch_test", "[CarelevoPatch::createUserSettingInfo] response failed")
                     }
                 }

@@ -6,12 +6,6 @@ import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Single
 import java.util.Optional
 
-/*
- * Project   : CareLevoAAPS
- * File      : CarelevoAlarmInfoLocalDataSource
- * Package   : info.nightscout.androidaps.plugins.pump.carelevo.data.dataSource.local
- * Created   : 2025. 9. 4. PM 4:05
- */
 interface CarelevoAlarmInfoLocalDataSource {
 
     fun observeAlarms(): Observable<Optional<List<CarelevoAlarmInfoEntity>>>

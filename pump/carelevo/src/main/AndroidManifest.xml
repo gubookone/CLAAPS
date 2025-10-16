@@ -11,6 +11,11 @@
             android:name=".ui.activities.CarelevoActivity"
             android:configChanges="orientation|layoutDirection|screenLayout|density|screenSize|smallestScreenSize"
             android:theme="@style/AppTheme" />
+
+        <activity
+            android:name=".ui.activities.CarelevoAlarmActivity"
+            android:configChanges="orientation|layoutDirection|screenLayout|density|screenSize|smallestScreenSize"
+            android:theme="@style/AppTheme" />
     </application>
 
 </manifest>

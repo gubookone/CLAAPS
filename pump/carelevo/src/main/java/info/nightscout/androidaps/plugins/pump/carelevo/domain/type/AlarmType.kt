@@ -1,22 +1,19 @@
 package info.nightscout.androidaps.plugins.pump.carelevo.domain.type
 
-/*
- * Project   : CareLevoAAPS
- * File      : AlarmType
- * Package   : info.nightscout.androidaps.plugins.pump.carelevo.domain.type
- * Created   : 2025. 9. 8. AM 9:51
- */
-
 enum class AlarmType(val code: Int) {
     WARNING(0),
     ALERT(1),
     NOTICE(2),
-    UNKNOWN_TYPE(-1);
+    UNKNOWN_TYPE(3);
 
     companion object {
 
         fun fromCode(code: Int?): AlarmType {
             return entries.find { it.code == code } ?: UNKNOWN_TYPE
+        }
+
+        fun fromAlarmType(type: AlarmType): Int {
+            return type.code
         }
     }
 }

@@ -1,5 +1,6 @@
 package info.nightscout.androidaps.plugins.pump.carelevo.ble.core
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
@@ -45,23 +46,26 @@ import info.nightscout.androidaps.plugins.pump.carelevo.ext.convertBytesToHex
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.newSingleThreadContext
 import java.util.UUID
 import javax.inject.Inject
 
 class CarelevoBleMangerImpl @Inject constructor(
-    private val context : Context,
-    private val params : BleParams
+    private val context: Context,
+    private val params: BleParams
 ) : CarelevoBleManager {
 
     private val deviceMap = mutableMapOf<String, ScannedDevice>()
 
     private var isScanning = false
     private var isConnecting = false
-
-    private var bluetoothGatt : BluetoothGatt? = null
+    private val commandScope = CoroutineScope(newSingleThreadContext("commandScope"))
+    private var bluetoothGatt: BluetoothGatt? = null
     private val btManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-    private val btAdapter : BluetoothAdapter? by lazy {
+    private val btAdapter: BluetoothAdapter? by lazy {
         val manager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         manager.adapter
     }
@@ -74,6 +78,9 @@ class CarelevoBleMangerImpl @Inject constructor(
         .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
         .build()
 
+    private var tempAddress: String? = null
+    private var disconnectedAddress: String? = null
+
     override fun isBluetoothEnabled(): Boolean {
         return btAdapter?.isEnabled == true
     }
@@ -83,13 +90,13 @@ class CarelevoBleMangerImpl @Inject constructor(
     }
 
     override fun isNotificationEnabled(): Boolean {
-        if(btManager == null) {
+        if (btManager == null) {
             return false
         }
-        if(btAdapter == null) {
+        if (btAdapter == null) {
             return false
         }
-        if(isBluetoothEnabled()) {
+        if (isBluetoothEnabled()) {
             return false
         }
 
@@ -101,6 +108,39 @@ class CarelevoBleMangerImpl @Inject constructor(
                     true
                 }
         } ?: false
+    }
+
+    fun checkPermissions(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            (context.hasPermission(Manifest.permission.BLUETOOTH_SCAN)
+                && context.hasPermission(Manifest.permission.BLUETOOTH_CONNECT))
+        } else {
+            context.hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    override fun isConnected(macAddress: String): Boolean {
+        if (!checkPermissions()) {
+            Log.d("ble_test", "[BleManagerImpl::isConnected] permission is not granted so return false")
+            return false
+        }
+        if (!isBluetoothEnabled()) {
+            Log.d("ble_test", "[BleManagerImpl::isConnected] bluetooth is not enabled so return false")
+            return false
+        }
+
+        val device = btAdapter?.getRemoteDevice(macAddress.uppercase()) ?: return false
+        val connectionState = btManager.getConnectionState(device, BluetoothProfile.GATT)
+
+        Log.d("ble_test", "[BleManagerImpl::isConnected] device : $device")
+        Log.d("ble_test", "[BleManagerImpl::isConnected] connectionState : $connectionState")
+
+        val gattDevice = bluetoothGatt?.device ?: return false
+
+        Log.d("ble_test", "[BleManagerImpl::isConnected] gattDevice : $gattDevice")
+
+        return connectionState == BluetoothProfile.STATE_CONNECTED && device == gattDevice
     }
 
     override fun getGatt(): BluetoothGatt? {
@@ -123,31 +163,31 @@ class CarelevoBleMangerImpl @Inject constructor(
 
     @SuppressLint("MissingPermission")
     override fun isBonded(macAddress: String): Boolean {
-        if(btManager == null) {
+        if (btManager == null) {
             return false
         }
-        if(btAdapter == null) {
+        if (btAdapter == null) {
             return false
         }
-        if(!checkHasPermission()) {
+        if (!checkHasPermission()) {
             return false
         }
-        val bondDevice : Set<BluetoothDevice> = BluetoothAdapter.getDefaultAdapter().bondedDevices
+        val bondDevice: Set<BluetoothDevice> = BluetoothAdapter.getDefaultAdapter().bondedDevices
         return bondDevice.find { it.address == macAddress.lowercase() || it.address == macAddress.uppercase() } != null
     }
 
     @SuppressLint("MissingPermission")
     override fun clearBond(macAddress: String): CommandResult<Boolean> {
-        if(btManager == null) {
+        if (btManager == null) {
             return CommandResult.Failure(FailureState.FAILURE_RESOURCE_NOT_INITIALIZED, "bluetooth manager is not initialized")
         }
-        if(btAdapter == null) {
+        if (btAdapter == null) {
             return CommandResult.Failure(FailureState.FAILURE_RESOURCE_NOT_INITIALIZED, "bluetooth adapter is not initialized")
         }
-        if(!checkHasPermission()) {
+        if (!checkHasPermission()) {
             return CommandResult.Failure(FailureState.FAILURE_PERMISSION_NOT_GRANTED, "permission is not granted")
         }
-        if(!isBluetoothEnabled()) {
+        if (!isBluetoothEnabled()) {
             return CommandResult.Failure(FailureState.FAILURE_BT_NOT_ENABLED, "bluetooth is not enabled")
         }
 
@@ -161,13 +201,13 @@ class CarelevoBleMangerImpl @Inject constructor(
 
     @SuppressLint("MissingPermission")
     override fun disableManager(): Boolean {
-        if(btManager == null) {
+        if (btManager == null) {
             return false
         }
-        if(btAdapter == null) {
+        if (btAdapter == null) {
             return false
         }
-        if(!isBluetoothEnabled()) {
+        if (!isBluetoothEnabled()) {
             return false
         }
 
@@ -184,16 +224,16 @@ class CarelevoBleMangerImpl @Inject constructor(
 
     @SuppressLint("MissingPermission")
     override fun startScan(scanFilter: ScanFilter?): CommandResult<Boolean> {
-        if(btManager == null) {
+        if (btManager == null) {
             return CommandResult.Failure(FailureState.FAILURE_RESOURCE_NOT_INITIALIZED, "bluetooth manger is not initialized")
         }
-        if(btAdapter == null) {
+        if (btAdapter == null) {
             return CommandResult.Failure(FailureState.FAILURE_RESOURCE_NOT_INITIALIZED, "bluetooth adapter is not initialized")
         }
-        if(!checkHasPermission()) {
+        if (!checkHasPermission()) {
             return CommandResult.Failure(FailureState.FAILURE_PERMISSION_NOT_GRANTED, "permissions are not granted")
         }
-        if(!isBluetoothEnabled()) {
+        if (!isBluetoothEnabled()) {
             return CommandResult.Failure(FailureState.FAILURE_BT_NOT_ENABLED, "bluetooth is not enabled")
         }
 
@@ -217,19 +257,19 @@ class CarelevoBleMangerImpl @Inject constructor(
 
     @SuppressLint("MissingPermission")
     override fun stopScan(): CommandResult<Boolean> {
-        if(btManager == null) {
+        if (btManager == null) {
             return CommandResult.Failure(FailureState.FAILURE_RESOURCE_NOT_INITIALIZED, "bluetooth manger is not initialized")
         }
-        if(btAdapter == null) {
+        if (btAdapter == null) {
             return CommandResult.Failure(FailureState.FAILURE_RESOURCE_NOT_INITIALIZED, "bluetooth adapter is not initialized")
         }
-        if(!checkHasPermission()) {
+        if (!checkHasPermission()) {
             return CommandResult.Failure(FailureState.FAILURE_PERMISSION_NOT_GRANTED, "permissions are not granted")
         }
-        if(!isBluetoothEnabled()) {
+        if (!isBluetoothEnabled()) {
             return CommandResult.Failure(FailureState.FAILURE_BT_NOT_ENABLED, "bluetooth is not enabled")
         }
-        if(!isScanning) {
+        if (!isScanning) {
             return CommandResult.Success(true)
         }
 
@@ -240,26 +280,26 @@ class CarelevoBleMangerImpl @Inject constructor(
     }
 
     @SuppressLint("MissingPermission")
-    override fun connectTo(macAddress: String): CommandResult<Boolean> {
-        if(macAddress.isEmpty()) {
+    override suspend fun connectTo(macAddress: String): CommandResult<Boolean> {
+        if (macAddress.isEmpty()) {
             return CommandResult.Failure(FailureState.FAILURE_INVALID_PARAMS, "mac address is empty")
         }
-        if(btManager == null) {
+        if (btManager == null) {
             return CommandResult.Failure(FailureState.FAILURE_RESOURCE_NOT_INITIALIZED, "bluetooth manager is not initialized")
         }
-        if(btAdapter == null) {
+        if (btAdapter == null) {
             return CommandResult.Failure(FailureState.FAILURE_RESOURCE_NOT_INITIALIZED, "bluetooth adapter is not initialized")
         }
-        if(!checkHasPermission()) {
+        if (!checkHasPermission()) {
             return CommandResult.Failure(FailureState.FAILURE_PERMISSION_NOT_GRANTED, "permissions are not granted")
         }
-        if(!isBluetoothEnabled()) {
+        if (!isBluetoothEnabled()) {
             return CommandResult.Failure(FailureState.FAILURE_BT_NOT_ENABLED, "bluetooth is not enabled")
         }
-        if(isConnecting) {
+        if (isConnecting) {
             return CommandResult.Success(true)
         }
-        if(isScanning) {
+        if (isScanning) {
             stopScan()
         }
 
@@ -269,22 +309,31 @@ class CarelevoBleMangerImpl @Inject constructor(
             bluetoothGatt = null
         }
 
-        btManager.getConnectedDevices(BluetoothProfile.GATT)
-            ?.forEachIndexed { index, bluetoothDevice ->
-                if(bluetoothDevice?.address == macAddress) {
-                    return CommandResult.Success(true)
-                }
-            }
+        tempAddress = macAddress
+
+        val isConnected = isConnected(macAddress)
+        Log.d("ble_test", "[BleManagerImpl::connectTo] isConnected : $isConnected")
+        if (isConnected) {
+            return CommandResult.Success(true)
+        }
 
         val result = runCatching {
-            val device = btAdapter?.getRemoteDevice(macAddress) ?: return@runCatching CommandResult.Failure(FailureState.FAILURE_COMMAND_NOT_EXECUTABLE, "Remote device is not found")
+            val device = btAdapter?.getRemoteDevice(macAddress) ?: return@runCatching CommandResult.Failure(FailureState.FAILURE_COMMAND_NOT_EXECUTABLE, "Remote Device is not found.")
 
-            bluetoothGatt = device.connectGatt(
-                context.applicationContext,
-                true,
-                bluetoothGattCallback,
-                2
-            )
+            Log.d("ble_test", "[BleManagerImpl::connectTo] device : $device")
+
+            commandScope.async(Dispatchers.Main) {
+                bluetoothGatt = device.connectGatt(
+                    context.applicationContext,
+//                    false,
+                    true,
+                    bluetoothGattCallback,
+                    BluetoothDevice.TRANSPORT_LE
+                )
+                delay(1000)
+            }.await()
+
+            Log.d("ble_test", "[BleManagerImpl::connectTo] bluetoothGatt : $bluetoothGatt")
 
             return@runCatching bluetoothGatt?.let {
                 CommandResult.Success(true)
@@ -298,16 +347,16 @@ class CarelevoBleMangerImpl @Inject constructor(
 
     @SuppressLint("MissingPermission")
     override fun disconnectFrom(): CommandResult<Boolean> {
-        if(btManager == null) {
+        if (btManager == null) {
             return CommandResult.Failure(FailureState.FAILURE_RESOURCE_NOT_INITIALIZED, "bluetooth manager is not initialized")
         }
-        if(btAdapter == null) {
+        if (btAdapter == null) {
             return CommandResult.Failure(FailureState.FAILURE_RESOURCE_NOT_INITIALIZED, "bluetooth adapter is not initialized")
         }
-        if(!checkHasPermission()) {
+        if (!checkHasPermission()) {
             return CommandResult.Failure(FailureState.FAILURE_PERMISSION_NOT_GRANTED, "permissions are not granted")
         }
-        if(!isBluetoothEnabled()) {
+        if (!isBluetoothEnabled()) {
             return CommandResult.Failure(FailureState.FAILURE_BT_NOT_ENABLED, "bluetooth is not enabled")
         }
 
@@ -329,21 +378,21 @@ class CarelevoBleMangerImpl @Inject constructor(
 
     @SuppressLint("MissingPermission")
     override fun discoverService(): CommandResult<Boolean> {
-        if(btManager == null) {
+        if (btManager == null) {
             return CommandResult.Failure(FailureState.FAILURE_RESOURCE_NOT_INITIALIZED, "bluetooth manager is not initialized")
         }
-        if(btAdapter == null) {
+        if (btAdapter == null) {
             return CommandResult.Failure(FailureState.FAILURE_RESOURCE_NOT_INITIALIZED, "bluetooth adapter is not initialized")
         }
-        if(!checkHasPermission()) {
+        if (!checkHasPermission()) {
             return CommandResult.Failure(FailureState.FAILURE_PERMISSION_NOT_GRANTED, "permissions are not granted")
         }
-        if(!isBluetoothEnabled()) {
+        if (!isBluetoothEnabled()) {
             return CommandResult.Failure(FailureState.FAILURE_BT_NOT_ENABLED, "bluetooth is not enabled")
         }
 
         return bluetoothGatt?.run {
-            if(discoverServices()) {
+            if (discoverServices()) {
                 CommandResult.Success(true)
             } else {
                 CommandResult.Success(false)
@@ -352,16 +401,16 @@ class CarelevoBleMangerImpl @Inject constructor(
     }
 
     override fun unBondDevice(macAddress: String): CommandResult<Boolean> {
-        if(btManager == null) {
+        if (btManager == null) {
             return CommandResult.Failure(FailureState.FAILURE_RESOURCE_NOT_INITIALIZED, "bluetooth manager is not initialized")
         }
-        if(btAdapter == null) {
+        if (btAdapter == null) {
             return CommandResult.Failure(FailureState.FAILURE_RESOURCE_NOT_INITIALIZED, "bluetooth adapter is not initialized")
         }
-        if(!checkHasPermission()) {
+        if (!checkHasPermission()) {
             return CommandResult.Failure(FailureState.FAILURE_PERMISSION_NOT_GRANTED, "permissions are not granted")
         }
-        if(!isBluetoothEnabled()) {
+        if (!isBluetoothEnabled()) {
             return CommandResult.Failure(FailureState.FAILURE_BT_NOT_ENABLED, "bluetooth is not enabled")
         }
 
@@ -369,7 +418,7 @@ class CarelevoBleMangerImpl @Inject constructor(
             btManager.existBondedDevice(macAddress)
         }.fold(
             onSuccess = { isDeviceFound ->
-                if(isDeviceFound) {
+                if (isDeviceFound) {
                     val actionResult = bluetoothGatt?.device?.removeBond()
                     actionResult?.let {
                         val currentState = CarelevoBleSource.bluetoothState.value?.copy(isBonded = BondingState.BOND_NONE)
@@ -389,34 +438,36 @@ class CarelevoBleMangerImpl @Inject constructor(
 
     @SuppressLint("MissingPermission")
     override fun writeCharacteristic(uuid: UUID, payload: ByteArray): CommandResult<Boolean> {
-        if(btManager == null) {
+        if (btManager == null) {
             return CommandResult.Failure(FailureState.FAILURE_RESOURCE_NOT_INITIALIZED, "bluetooth manager is not initialized")
         }
-        if(btAdapter == null) {
+        if (btAdapter == null) {
             return CommandResult.Failure(FailureState.FAILURE_RESOURCE_NOT_INITIALIZED, "bluetooth adapter is not initialized")
         }
-        if(!checkHasPermission()) {
+        if (!checkHasPermission()) {
             return CommandResult.Failure(FailureState.FAILURE_PERMISSION_NOT_GRANTED, "permissions are not granted")
         }
-        if(!isBluetoothEnabled()) {
+        if (!isBluetoothEnabled()) {
             return CommandResult.Failure(FailureState.FAILURE_BT_NOT_ENABLED, "bluetooth is not enabled")
         }
 
         return bluetoothGatt?.let { gatt ->
             gatt.findCharacteristic(params.rxUUID)?.let { characteristicTarget ->
                 val writeType = when {
-                    characteristicTarget.isWritable() -> {
+                    characteristicTarget.isWritable()                -> {
                         BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
                     }
+
                     characteristicTarget.isWritableWithoutResponse() -> {
                         BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
                     }
-                    else -> {
+
+                    else                                             -> {
                         return CommandResult.Failure(FailureState.FAILURE_COMMAND_NOT_EXECUTABLE, "Characteristic target is not writeable")
                     }
                 }
-                if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    if(gatt.writeCharacteristic(characteristicTarget, payload, writeType) == BluetoothStatusCodes.SUCCESS) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    if (gatt.writeCharacteristic(characteristicTarget, payload, writeType) == BluetoothStatusCodes.SUCCESS) {
                         CommandResult.Success(true)
                     } else {
                         CommandResult.Success(false)
@@ -424,7 +475,7 @@ class CarelevoBleMangerImpl @Inject constructor(
                 } else {
                     characteristicTarget.writeType = writeType
                     characteristicTarget.value = payload
-                    if(gatt.writeCharacteristic(characteristicTarget)) {
+                    if (gatt.writeCharacteristic(characteristicTarget)) {
                         CommandResult.Success(true)
                     } else {
                         CommandResult.Success(false)
@@ -436,22 +487,22 @@ class CarelevoBleMangerImpl @Inject constructor(
 
     @SuppressLint("MissingPermission")
     override fun readCharacteristic(characteristicUuid: UUID): CommandResult<Boolean> {
-        if(btManager == null) {
+        if (btManager == null) {
             return CommandResult.Failure(FailureState.FAILURE_RESOURCE_NOT_INITIALIZED, "bluetooth manager is not initialized")
         }
-        if(btAdapter == null) {
+        if (btAdapter == null) {
             return CommandResult.Failure(FailureState.FAILURE_RESOURCE_NOT_INITIALIZED, "bluetooth adapter is not initialized")
         }
-        if(!checkHasPermission()) {
+        if (!checkHasPermission()) {
             return CommandResult.Failure(FailureState.FAILURE_PERMISSION_NOT_GRANTED, "permissions are not granted")
         }
-        if(!isBluetoothEnabled()) {
+        if (!isBluetoothEnabled()) {
             return CommandResult.Failure(FailureState.FAILURE_BT_NOT_ENABLED, "bluetooth is not enabled")
         }
 
         return bluetoothGatt?.let { gatt ->
             gatt.findCharacteristic(characteristicUuid)?.let { characteristic ->
-                if(gatt.readCharacteristic(characteristic)) {
+                if (gatt.readCharacteristic(characteristic)) {
                     CommandResult.Success(true)
                 } else {
                     CommandResult.Success(false)
@@ -462,41 +513,41 @@ class CarelevoBleMangerImpl @Inject constructor(
 
     @SuppressLint("MissingPermission")
     override fun enabledNotifications(uuid: UUID): CommandResult<Boolean> {
-        if(btManager == null) {
+        if (btManager == null) {
             return CommandResult.Failure(FailureState.FAILURE_RESOURCE_NOT_INITIALIZED, "bluetooth manager is not initialized")
         }
-        if(btAdapter == null) {
+        if (btAdapter == null) {
             return CommandResult.Failure(FailureState.FAILURE_RESOURCE_NOT_INITIALIZED, "bluetooth adapter is not initialized")
         }
-        if(!checkHasPermission()) {
+        if (!checkHasPermission()) {
             return CommandResult.Failure(FailureState.FAILURE_PERMISSION_NOT_GRANTED, "permissions are not granted")
         }
-        if(!isBluetoothEnabled()) {
+        if (!isBluetoothEnabled()) {
             return CommandResult.Failure(FailureState.FAILURE_BT_NOT_ENABLED, "bluetooth is not enabled")
         }
 
         return bluetoothGatt?.let { gatt ->
             gatt.findCharacteristic(params.txUuid)?.run {
                 getDescriptor(params.cccd)?.let { cccDescriptor ->
-                    if(!gatt.setCharacteristicNotification(this, true)) {
+                    if (!gatt.setCharacteristicNotification(this, true)) {
                         CommandResult.Failure(FailureState.FAILURE_COMMAND_NOT_EXECUTABLE, "set characteristic notification failed for ${this.uuid}")
                     } else {
-                        val success = if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            if(gatt.writeDescriptor(cccDescriptor, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE) == BluetoothStatusCodes.SUCCESS) {
+                        val success = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            if (gatt.writeDescriptor(cccDescriptor, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE) == BluetoothStatusCodes.SUCCESS) {
                                 CommandResult.Success(true)
                             } else {
                                 CommandResult.Success(false)
                             }
                         } else {
                             cccDescriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                            if(gatt.writeDescriptor(cccDescriptor)) {
+                            if (gatt.writeDescriptor(cccDescriptor)) {
                                 CommandResult.Success(true)
                             } else {
                                 CommandResult.Success(false)
                             }
                         }
                         val currentState = CarelevoBleSource.bluetoothState.value?.copy(
-                            isNotificationEnabled = if(success.data) NotificationState.NOTIFICATION_ENABLED else NotificationState.NOTIFICATION_DISABLED
+                            isNotificationEnabled = if (success.data) NotificationState.NOTIFICATION_ENABLED else NotificationState.NOTIFICATION_DISABLED
                         )
                         CarelevoBleSource._bluetoothState.onNext(currentState)
                         success
@@ -513,16 +564,16 @@ class CarelevoBleMangerImpl @Inject constructor(
 
     @SuppressLint("MissingPermission")
     override fun disabledNotifications(uuid: UUID): CommandResult<Boolean> {
-        if(btManager == null) {
+        if (btManager == null) {
             return CommandResult.Failure(FailureState.FAILURE_RESOURCE_NOT_INITIALIZED, "bluetooth manager is not initialized")
         }
-        if(btAdapter == null) {
+        if (btAdapter == null) {
             return CommandResult.Failure(FailureState.FAILURE_RESOURCE_NOT_INITIALIZED, "bluetooth adapter is not initialized")
         }
-        if(!checkHasPermission()) {
+        if (!checkHasPermission()) {
             return CommandResult.Failure(FailureState.FAILURE_PERMISSION_NOT_GRANTED, "permissions are not granted")
         }
-        if(!isBluetoothEnabled()) {
+        if (!isBluetoothEnabled()) {
             return CommandResult.Failure(FailureState.FAILURE_BT_NOT_ENABLED, "bluetooth is not enabled")
         }
 
@@ -532,25 +583,25 @@ class CarelevoBleMangerImpl @Inject constructor(
                     ?.takeIf {
                         it.isEnabled()
                     }?.let { cccDescriptor ->
-                        if(!gatt.setCharacteristicNotification(characteristic, false)) {
+                        if (!gatt.setCharacteristicNotification(characteristic, false)) {
                             CommandResult.Failure(FailureState.FAILURE_COMMAND_NOT_EXECUTABLE, "set characteristic notification failed for ${characteristic.uuid}")
                         } else {
-                            val success = if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                if(gatt.writeDescriptor(cccDescriptor, BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE) == BluetoothStatusCodes.SUCCESS) {
+                            val success = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                if (gatt.writeDescriptor(cccDescriptor, BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE) == BluetoothStatusCodes.SUCCESS) {
                                     CommandResult.Success(true)
                                 } else {
                                     CommandResult.Success(false)
                                 }
                             } else {
                                 cccDescriptor.value = BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
-                                if(gatt.writeDescriptor(cccDescriptor)) {
+                                if (gatt.writeDescriptor(cccDescriptor)) {
                                     CommandResult.Success(true)
                                 } else {
                                     CommandResult.Success(false)
                                 }
                             }
                             val currentState = CarelevoBleSource.bluetoothState.value?.copy(
-                                isNotificationEnabled = if(success.data) NotificationState.NOTIFICATION_DISABLED else NotificationState.NOTIFICATION_ENABLED
+                                isNotificationEnabled = if (success.data) NotificationState.NOTIFICATION_DISABLED else NotificationState.NOTIFICATION_ENABLED
                             )
                             CarelevoBleSource._bluetoothState.onNext(currentState)
                             success
@@ -564,8 +615,8 @@ class CarelevoBleMangerImpl @Inject constructor(
         deviceMap.clear()
     }
 
-    private fun checkHasPermission() : Boolean {
-        return if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+    private fun checkHasPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val isScanPermissionGranted = context.hasPermission(android.Manifest.permission.BLUETOOTH_SCAN)
             val isBluetoothConnectPermissionGranted = context.hasPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
 
@@ -578,10 +629,10 @@ class CarelevoBleMangerImpl @Inject constructor(
     }
 
     //=============================================================================
-    private val scanCallback : ScanCallback = object : ScanCallback() {
+    private val scanCallback: ScanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult?) {
             super.onScanResult(callbackType, result)
-            if(!checkHasPermission()) {
+            if (!checkHasPermission()) {
                 return
             }
             result?.let { scanDevice ->
@@ -618,12 +669,12 @@ class CarelevoBleMangerImpl @Inject constructor(
         override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
             super.onConnectionStateChange(gatt, status, newState)
 
-            var currentState : BleState? = CarelevoBleSource.bluetoothState.value?.copy()
+            var currentState: BleState? = CarelevoBleSource.bluetoothState.value?.copy()
             val bondState = gatt?.device?.bondState ?: -1
 
-            when(newState) {
+            when (newState) {
                 BluetoothProfile.STATE_CONNECTED     -> {
-                    if(status == BluetoothGatt.GATT_SUCCESS) {
+                    if (status == BluetoothGatt.GATT_SUCCESS) {
                         gatt?.device?.createBond()
                         currentState = CarelevoBleSource.bluetoothState.value?.copy(
                             isConnected = newState.codeToConnectionResult(),
@@ -636,7 +687,7 @@ class CarelevoBleMangerImpl @Inject constructor(
                 }
 
                 BluetoothProfile.STATE_DISCONNECTING -> {
-                    if(status == BluetoothGatt.GATT_SUCCESS) {
+                    if (status == BluetoothGatt.GATT_SUCCESS) {
                         currentState = CarelevoBleSource.bluetoothState.value?.copy(
                             isConnected = newState.codeToConnectionResult(),
                             isBonded = bondState.codeToBondingResult(),
@@ -651,7 +702,7 @@ class CarelevoBleMangerImpl @Inject constructor(
                     gatt?.close()
                     bluetoothGatt = null
 
-                    if(status == BluetoothGatt.GATT_SUCCESS) {
+                    if (status == BluetoothGatt.GATT_SUCCESS) {
                         currentState = CarelevoBleSource.bluetoothState.value?.copy(
                             isConnected = PeripheralConnectionState.CONN_STATE_NONE,
                             isBonded = BondingState.BOND_NONE,
@@ -660,7 +711,7 @@ class CarelevoBleMangerImpl @Inject constructor(
                         )
                         CarelevoBleSource._bluetoothState.onNext(currentState)
                     } else {
-                        if(CarelevoBleSource.bluetoothState.value?.isEnabled != DeviceModuleState.DEVICE_STATE_ON) {
+                        if (CarelevoBleSource.bluetoothState.value?.isEnabled != DeviceModuleState.DEVICE_STATE_ON) {
                             gatt?.close()
                             bluetoothGatt = null
                         }
@@ -686,7 +737,7 @@ class CarelevoBleMangerImpl @Inject constructor(
 
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray) {
             super.onCharacteristicChanged(gatt, characteristic, value)
-            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 Log.d("ble_test", "[CarelevoBleManagerImpl::onCharacteristicChanged] value : ${value.convertBytesToHex()}")
                 CarelevoBleSource._notifyIndicateBytes.onNext(
                     CharacterResult(
@@ -701,7 +752,7 @@ class CarelevoBleMangerImpl @Inject constructor(
         @Deprecated("Deprecated in Java")
         override fun onCharacteristicChanged(gatt: BluetoothGatt?, characteristic: BluetoothGattCharacteristic?) {
             super.onCharacteristicChanged(gatt, characteristic)
-            if(Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
                 Log.d("ble_test", "[CarelevoBleManagerImpl::onCharacteristicChanged deprecated version] value : ${characteristic?.value?.convertBytesToHex()}")
                 CarelevoBleSource._notifyIndicateBytes.onNext(
                     CharacterResult(

@@ -14,11 +14,14 @@ import info.nightscout.androidaps.plugins.pump.carelevo.ble.data.ServiceDiscover
 import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.plusAssign
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 class CarelevoBleControllerImpl @Inject constructor(
-    private val params : BleParams,
-    private val btManager : CarelevoBleManager
+    private val params: BleParams,
+    private val btManager: CarelevoBleManager
 ) : CarelevoBleController {
 
     private val bleCommandLifecycle = CompositeDisposable()
@@ -93,48 +96,58 @@ class CarelevoBleControllerImpl @Inject constructor(
     }
 
     override fun execute(command: BleCommand): Single<CommandResult<Boolean>> {
-        when(command) {
-            is StartScan -> with(command) {
+        when (command) {
+            is StartScan              -> with(command) {
                 return Single.just(btManager.startScan(scanFilter))
                 // return btManager.startScan(scanFilter)
             }
-            is StopScan -> {
+
+            is StopScan               -> {
                 return Single.just(btManager.stopScan())
                 // return btManager.stopScan()
             }
-            is Connect -> with(command) {
-                return Single.just(btManager.connectTo(address))
+
+            is Connect                -> with(command) {
+                return connectToSingle(address)
                 // return btManager.connectTo(address)
             }
-            is Disconnect -> {
+
+            is Disconnect             -> {
                 return Single.just(btManager.disconnectFrom())
                 // return btManager.disconnectFrom()
             }
-            is DiscoveryService -> {
+
+            is DiscoveryService       -> {
                 return Single.just(btManager.discoverService())
                 // return btManager.discoverService()
             }
-            is WriteToCharacteristic -> with(command) {
+
+            is WriteToCharacteristic  -> with(command) {
                 return Single.just(btManager.writeCharacteristic(uuid = characteristicUuid, payload = payload))
                 // return btManager.writeCharacteristic(uuid = characteristicUuid, payload = payload)
             }
+
             is ReadFromCharacteristic -> with(command) {
                 return Single.just(btManager.readCharacteristic(characteristicUuid = characteristicUuid))
                 // return btManager.readCharacteristic(characteristicUuid = characteristicUuid)
             }
-            is EnableNotifications -> with(command) {
+
+            is EnableNotifications    -> with(command) {
                 return Single.just(btManager.enabledNotifications(uuid = characteristicUuid))
                 // return btManager.enabledNotifications(uuid = characteristicUuid)
             }
-            is DisableNotifications -> with(command) {
+
+            is DisableNotifications   -> with(command) {
                 return Single.just(btManager.disabledNotifications(uuid = characteristicUuid))
                 // return btManager.disabledNotifications(uuid = characteristicUuid)
             }
-            is UnBondDevice -> with(command) {
+
+            is UnBondDevice           -> with(command) {
                 return Single.just(btManager.unBondDevice(macAddress = address))
                 // btManager.unBondDevice(macAddress = address)
             }
-            is Delay -> with(command) {
+
+            is Delay                  -> with(command) {
                 // delay(duration)
                 Thread.sleep(duration)
                 return Single.just(CommandResult.Success(true))
@@ -142,6 +155,27 @@ class CarelevoBleControllerImpl @Inject constructor(
             }
         }
         return Single.just(CommandResult.Success(false))
+    }
+
+    private fun connectToSingle(address: String): Single<CommandResult<Boolean>> {
+        return Single.create<CommandResult<Boolean>> { emitter ->
+            // 코루틴으로 suspend 호출
+            val job = CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val result = btManager.connectTo(address) // ✅ suspend 호출
+                    if (!emitter.isDisposed) {
+                        emitter.onSuccess(result)
+                    }
+                } catch (e: Throwable) {
+                    if (!emitter.isDisposed) {
+                        emitter.onError(e)
+                    }
+                }
+            }
+
+            // Single 구독이 해제되면 코루틴도 취소되게 함
+            emitter.setCancellable { job.cancel() }
+        }
     }
 
     override fun stop(): Boolean {
@@ -164,24 +198,24 @@ class CarelevoBleControllerImpl @Inject constructor(
 
     private fun startCommandExecutor() {
         bleCommandLifecycle += CarelevoBleSource.bleCommandChains
-            .subscribe { 
+            .subscribe {
                 it.forEach { bleCommand ->
                     executeSingleCommand(bleCommand)
                 }
             }
     }
 
-    private fun executeSingleCommand(bleCommand : BleCommand) : Single<Boolean> {
+    private fun executeSingleCommand(bleCommand: BleCommand): Single<Boolean> {
 
-        return if(btManager.isBluetoothEnabled()) {
+        return if (btManager.isBluetoothEnabled()) {
             execute(bleCommand)
                 .concatMap { result ->
-                    isLastCommandSuccess = if(result is CommandResult.Success) {
+                    isLastCommandSuccess = if (result is CommandResult.Success) {
                         result.data
                     } else {
                         false
                     }
-                    if(!isLastCommandSuccess && bleCommand.isImportant) {
+                    if (!isLastCommandSuccess && bleCommand.isImportant) {
                         executeCommandWhileComplete(bleCommand)
                     } else {
                         Single.just(isLastCommandSuccess)
@@ -192,12 +226,12 @@ class CarelevoBleControllerImpl @Inject constructor(
         }
     }
 
-    private fun executeCommandWhileComplete(bleCommand : BleCommand) : Single<Boolean> {
+    private fun executeCommandWhileComplete(bleCommand: BleCommand): Single<Boolean> {
         var result = Single.just(false)
         while (!isLastCommandSuccess && bleCommand.retryCnt > 0) {
-            if(btManager.isBluetoothEnabled()) {
+            if (btManager.isBluetoothEnabled()) {
                 result = execute(bleCommand).concatMap {
-                    if(it is CommandResult.Success) {
+                    if (it is CommandResult.Success) {
                         Single.just(it.data)
                     } else {
                         Single.just(false)

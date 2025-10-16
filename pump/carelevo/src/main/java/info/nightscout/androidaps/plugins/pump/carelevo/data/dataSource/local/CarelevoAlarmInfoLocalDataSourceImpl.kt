@@ -8,12 +8,6 @@ import io.reactivex.rxjava3.core.Single
 import java.util.Optional
 import javax.inject.Inject
 
-/*
- * Project   : CareLevoAAPS
- * File      : CarelevoAlarmInfoLocalDataSourceImpl
- * Package   : info.nightscout.androidaps.plugins.pump.carelevo.data.dataSource.local
- * Created   : 2025. 9. 4. PM 4:05
- */
 class CarelevoAlarmInfoLocalDataSourceImpl @Inject constructor(
     private val dao: CarelevoAlarmInfoDao
 ) : CarelevoAlarmInfoLocalDataSource {

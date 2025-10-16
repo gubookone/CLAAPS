@@ -319,3 +319,9 @@ data class DelayExtendBolusResponse(
     val delayedAmount: Double,
     val expectedTime: Int
 ) : BtResponse
+
+data class AppAlarmOffResponse(
+    override val timestamp: Long,
+    override val command: Int,
+    val result: Int
+) : BtResponse

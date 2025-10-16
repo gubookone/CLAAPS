@@ -23,6 +23,7 @@ import info.nightscout.androidaps.plugins.pump.carelevo.common.model.State
 import info.nightscout.androidaps.plugins.pump.carelevo.common.model.UiState
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.ResponseResult
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.patch.CarelevoPatchInfoDomainModel
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.alarm.CarelevoAlarmInfoUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.infusion.CarelevoPumpResumeUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.infusion.CarelevoPumpStopUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.infusion.model.CarelevoPumpStopRequestModel
@@ -31,6 +32,7 @@ import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.Car
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.CarelevoRequestPatchInfusionInfoUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.model.CarelevoOverviewEvent
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.model.CarelevoOverviewUiModel
+import info.nightscout.androidaps.plugins.pump.carelevo.ui.type.CarelevoScreenType
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.plusAssign
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,7 +58,8 @@ class CarelevoOverviewViewModel @Inject constructor(
     private val patchForceDiscardUseCase: CarelevoPatchForceDiscardUseCase,
     private val pumpStopUseCase: CarelevoPumpStopUseCase,
     private val pumpResumeUseCase: CarelevoPumpResumeUseCase,
-    private val requestPatchInfusionInfoUseCase: CarelevoRequestPatchInfusionInfoUseCase
+    private val requestPatchInfusionInfoUseCase: CarelevoRequestPatchInfusionInfoUseCase,
+    private val alarmUseCase: CarelevoAlarmInfoUseCase
 ) : ViewModel() {
 
     private val _bleState = MutableLiveData<PatchState?>()
@@ -107,7 +110,17 @@ class CarelevoOverviewViewModel @Inject constructor(
     private var _isPumpStop = MutableLiveData(false)
     val isPumpStop get() = _isPumpStop
 
+    private var _isCheckScreen = MutableStateFlow<CarelevoScreenType?>(null)
+    val isCheckScreen get() = _isCheckScreen
+
+    private val _hasUnacknowledgedAlarms = MutableStateFlow(false)
+    val hasUnacknowledgedAlarms = _hasUnacknowledgedAlarms.asStateFlow()
+
     private val compositeDisposable = CompositeDisposable()
+
+    init {
+        loadUnacknowledgedAlarms()
+    }
 
     fun setIsCreated(isCreated: Boolean) {
         _isCreated = isCreated
@@ -117,21 +130,17 @@ class CarelevoOverviewViewModel @Inject constructor(
         compositeDisposable += carelevoPatch.patchInfo
             .observeOn(aapsSchedulers.io)
             .filter { it != null }
-            .map { info -> buildUi(info.getOrNull() ?: error("Patch is Null.")) }
+            .map { info ->
+                val patchInfo = info.getOrNull() ?: error("PatchInfo is null")
+                updateCheckScreen(patchInfo)
+                buildUi(patchInfo)
+            }
             .observeOn(aapsSchedulers.main)
+            .doOnNext { ui -> updateState(ui) }
             .subscribe(
                 { ui ->
                     aapsLogger.debug(LTag.PUMP, "[Overview] $ui")
-                    _serialNumber.value = ui.serialNumber
-                    _lotNumber.value = ui.lotNumber
-                    _bootDateTime.value = ui.bootDateTimeUi
-                    _expirationTime.value = ui.expirationTime
-                    _infusionStatus.value = ui.infusionStatus
-                    _insulinRemains.value = ui.insulinRemainText
-                    _totalDeliveredBasalAmount.value = ui.totalBasal
-                    _totalDeliveredBolusAmount.value = ui.totalBolus
-                    _isPumpStop.value = ui.isPumpStopped
-                    _runningRemainMinutes.value = ui.runningRemainMinutes
+
                 },
                 { e ->
                     aapsLogger.debug(LTag.PUMP, "[CarelevoOverviewViewModel::observePatchInfo] onError", e)
@@ -139,7 +148,34 @@ class CarelevoOverviewViewModel @Inject constructor(
             )
     }
 
+    private fun updateCheckScreen(patchInfo: CarelevoPatchInfoDomainModel) {
+        val screenType = when {
+            patchInfo.checkNeedle == false -> {
+                val count = patchInfo.needleFailedCount
+                if (count != null && count < 3) CarelevoScreenType.CANNULA_INSERTION else null
+            }
+
+            patchInfo.checkSafety == false -> CarelevoScreenType.SAFETY_CHECK
+            else -> null
+        }
+        _isCheckScreen.tryEmit(screenType)
+    }
+
+    private fun updateState(ui: CarelevoOverviewUiModel) {
+        _serialNumber.value = ui.serialNumber
+        _lotNumber.value = ui.lotNumber
+        _bootDateTime.value = ui.bootDateTimeUi
+        _expirationTime.value = ui.expirationTime
+        _infusionStatus.value = ui.infusionStatus
+        _insulinRemains.value = ui.insulinRemainText
+        _totalDeliveredBasalAmount.value = ui.totalBasal
+        _totalDeliveredBolusAmount.value = ui.totalBolus
+        _isPumpStop.value = ui.isPumpStopped
+        _runningRemainMinutes.value = ui.runningRemainMinutes
+    }
+
     private fun buildUi(info: CarelevoPatchInfoDomainModel): CarelevoOverviewUiModel {
+        Log.d("", "[CarelevoOverviewViewModel::buildUi] info : $info")
         val bootLdt = parseBootDateTime(info.bootDateTime)
         val bootUi = bootLdt?.format(DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm")) ?: ""
 
@@ -199,6 +235,27 @@ class CarelevoOverviewViewModel @Inject constructor(
             .subscribe {
                 _basalRate.value = it?.getOrNull()?.getBasal() ?: 0.0
             }
+    }
+
+    fun loadUnacknowledgedAlarms() {
+        compositeDisposable += alarmUseCase.getAlarmsOnce()
+            .subscribeOn(aapsSchedulers.io)
+            .observeOn(aapsSchedulers.main)
+            .subscribe(
+                { optionalList ->
+                    val alarms = optionalList.orElse(emptyList())
+                        .filter { !it.isAcknowledged }
+                        .sortedBy { it.createdAt }
+                    Log.e("AlarmObserver", "getAlarmsOnce hasAlarm, $alarms")
+                    _hasUnacknowledgedAlarms.value = alarms.isNotEmpty()
+
+                }, { e ->
+                    Log.e("AlarmObserver", "getAlarmsOnce error", e)
+                })
+    }
+
+    fun initUnacknowledgedAlarms() {
+        _hasUnacknowledgedAlarms.value = false
     }
 
     fun triggerEvent(event: Event) {
@@ -262,7 +319,7 @@ class CarelevoOverviewViewModel @Inject constructor(
     private fun startPatchDiscard() {
         setUiState(UiState.Loading)
         compositeDisposable += patchDiscardUseCase.execute()
-            .timeout(3000L, TimeUnit.MILLISECONDS)
+            .timeout(30000L, TimeUnit.MILLISECONDS)
             .subscribeOn(aapsSchedulers.io)
             .observeOn(aapsSchedulers.main)
             .subscribe(
@@ -427,8 +484,10 @@ class CarelevoOverviewViewModel @Inject constructor(
                         triggerEvent(CarelevoOverviewEvent.ResumePumpComplete)
                     }
 
-                    else -> {
-                        aapsLogger.debug(LTag.PUMP, "[CarelevoOverviewViewModel::startPumpResume] response failed")
+                    is ResponseResult.Failure -> {}
+
+                    is ResponseResult.Error -> {
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoOverviewViewModel::startPumpResume] response failed: ${response.e.message}")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoOverviewEvent.ResumePumpFailed)
                     }

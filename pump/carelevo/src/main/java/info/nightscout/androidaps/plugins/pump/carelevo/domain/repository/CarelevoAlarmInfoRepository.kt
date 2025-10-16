@@ -6,12 +6,6 @@ import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Single
 import java.util.Optional
 
-/*
- * Project   : CareLevoAAPS
- * File      : CarelevoAlarmInfoRepository
- * Package   : info.nightscout.androidaps.plugins.pump.carelevo.domain.repository
- * Created   : 2025. 9. 4. PM 5:03
- */
 interface CarelevoAlarmInfoRepository {
 
     fun observeAlarms(): Observable<Optional<List<CarelevoAlarmInfo>>>

@@ -1,6 +1,5 @@
 package info.nightscout.androidaps.plugins.pump.carelevo.ui.dialog
 
-import android.os.Bundle
 import android.view.View
 import android.widget.TextView
 import androidx.annotation.ColorInt
@@ -9,18 +8,18 @@ import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.text.HtmlCompat
 import androidx.core.view.isVisible
 import info.nightscout.androidaps.plugins.pump.carelevo.R
-import info.nightscout.androidaps.plugins.pump.carelevo.databinding.DialogTextBottomSheetBinding
-import info.nightscout.androidaps.plugins.pump.carelevo.ui.base.CarelevoBaseDialog
+import info.nightscout.androidaps.plugins.pump.carelevo.databinding.DialogCarelevoAlarmBinding
+import info.nightscout.androidaps.plugins.pump.carelevo.ui.base.BaseFullScreenDialog
 
-class TextBottomSheetDialog : CarelevoBaseDialog<DialogTextBottomSheetBinding>(R.layout.dialog_text_bottom_sheet) {
+class CarelevoAlarmDialog : BaseFullScreenDialog<DialogCarelevoAlarmBinding>() {
+
+    override val layoutResId: Int = R.layout.dialog_carelevo_alarm
 
     private var title = ""
     private var content = ""
     private var primaryButton: Button? = null
-    private var secondaryButton: Button? = null
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
+    override fun init() {
 
         setupViews()
     }
@@ -39,9 +38,6 @@ class TextBottomSheetDialog : CarelevoBaseDialog<DialogTextBottomSheetBinding>(R
             tvContent.isVisible = content.isNotBlank()
 
             initButton(tvPrimaryButton, primaryButton)
-            initButton(tvSecondaryButton, secondaryButton)
-
-            space.isVisible = secondaryButton != null
         }
     }
 
@@ -77,19 +73,16 @@ class TextBottomSheetDialog : CarelevoBaseDialog<DialogTextBottomSheetBinding>(R
         private var title = ""
         private var content = ""
         private var primaryButton: Button? = null
-        private var secondaryButton: Button? = null
 
         fun setTitle(title: String) = apply { this.title = title }
         fun setContent(content: String) = apply { this.content = content }
         fun setPrimaryButton(button: Button) = apply { this.primaryButton = button }
-        fun setSecondaryButton(button: Button) = apply { this.secondaryButton = button }
 
-        fun build(): TextBottomSheetDialog {
-            return TextBottomSheetDialog().apply {
+        fun build(): CarelevoAlarmDialog {
+            return CarelevoAlarmDialog().apply {
                 this.title = this@Builder.title
                 this.content = this@Builder.content
                 this.primaryButton = this@Builder.primaryButton
-                this.secondaryButton = this@Builder.secondaryButton
             }
         }
     }

@@ -1,5 +1,6 @@
 package info.nightscout.androidaps.plugins.pump.carelevo
 
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.content.Context
 import android.content.IntentFilter
@@ -49,6 +50,8 @@ import info.nightscout.androidaps.plugins.pump.carelevo.ble.core.DiscoveryServic
 import info.nightscout.androidaps.plugins.pump.carelevo.ble.core.EnableNotifications
 import info.nightscout.androidaps.plugins.pump.carelevo.ble.data.BondingState.Companion.codeToBondingResult
 import info.nightscout.androidaps.plugins.pump.carelevo.ble.data.CommandResult
+import info.nightscout.androidaps.plugins.pump.carelevo.ble.data.DeviceModuleState.Companion.codeToDeviceResult
+import info.nightscout.androidaps.plugins.pump.carelevo.ble.data.PeripheralConnectionState
 import info.nightscout.androidaps.plugins.pump.carelevo.ble.data.isAbnormalBondingFailed
 import info.nightscout.androidaps.plugins.pump.carelevo.ble.data.isDiscoverCleared
 import info.nightscout.androidaps.plugins.pump.carelevo.ble.data.isReInitialized
@@ -83,6 +86,7 @@ import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.userSetti
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.userSetting.model.CarelevoUserSettingInfoRequestModel
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.fragments.CarelevoOverviewFragment
 import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.plusAssign
 import org.json.JSONException
 import org.json.JSONObject
@@ -141,6 +145,7 @@ class CarelevoPumpPlugin @Inject constructor(
     aapsLogger, rh, preferences, commandQueue
 ), Pump {
 
+    private var bleReceiverDisposable: Disposable? = null
     private val pluginDisposable = CompositeDisposable()
 
     private var _lastDateTime: Long = 0
@@ -191,20 +196,60 @@ class CarelevoPumpPlugin @Inject constructor(
                 }
             }
 
-        pluginDisposable.add(
-            CarelevoObserveReceiver(
-                context = context,
-                filter = IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
-            ).subscribe {
-                it.takeIf {
-                    it.action == BluetoothDevice.ACTION_BOND_STATE_CHANGED
-                }?.run {
-                    val bondState = getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR)
-                    val current = CarelevoBleSource.bluetoothState.value?.copy(isBonded = bondState.codeToBondingResult())
-                    current?.let { t -> CarelevoBleSource._bluetoothState.onNext(t) }
+        val filter = IntentFilter().apply {
+            // 기존: 페어링 상태 변화
+            addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+
+            // 추가: 어댑터 전원 상태 변화 (켜짐/꺼짐 등)
+            addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
+        }
+
+        if (bleReceiverDisposable?.isDisposed != false) {
+            bleReceiverDisposable = CarelevoObserveReceiver(context, filter)
+                .subscribe { intent ->
+                    Log.d("plugin_test", "[CarelevoPumpPlugin::onStart] CarelevoObserveReceiver called: ${intent.action}")
+                    when (intent.action) {
+                        BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
+                            val bondState = intent.getIntExtra(
+                                BluetoothDevice.EXTRA_BOND_STATE,
+                                BluetoothDevice.ERROR
+                            )
+                            CarelevoBleSource.bluetoothState.value
+                                ?.copy(isBonded = bondState.codeToBondingResult())
+                                ?.let { CarelevoBleSource._bluetoothState.onNext(it) }
+                        }
+
+                        BluetoothAdapter.ACTION_STATE_CHANGED     -> {
+                            val value = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
+                            if (value in setOf(BluetoothAdapter.STATE_ON, BluetoothAdapter.STATE_OFF, BluetoothAdapter.STATE_TURNING_ON, BluetoothAdapter.STATE_TURNING_OFF)) {
+                                val isConnected = value == BluetoothAdapter.STATE_ON
+
+                                CarelevoBleSource._bluetoothState.value?.copy(
+                                    isEnabled = value.codeToDeviceResult(),
+                                    isConnected = if (isConnected) {
+                                        PeripheralConnectionState.CONN_STATE_NONE
+                                    } else {
+                                        CarelevoBleSource._bluetoothState.value?.isConnected ?: PeripheralConnectionState.CONN_STATE_NONE
+                                    },
+                                )?.let { CarelevoBleSource._bluetoothState.onNext(it) }
+                            }
+                        }
+
+                        BluetoothDevice.ACTION_ACL_CONNECTED      -> {
+                            // 연결됨 표시
+                        }
+
+                        BluetoothDevice.ACTION_ACL_DISCONNECTED   -> {
+                            // 연결 해제 표시
+                        }
+                    }
                 }
+
+            bleReceiverDisposable?.let {
+                pluginDisposable.add(it)
             }
-        )
+        }
+
         carelevoAlarmNotifier.startObserving()
 
     }
@@ -215,7 +260,7 @@ class CarelevoPumpPlugin @Inject constructor(
         deleteUserSettingInfo()
         pluginDisposable.clear()
         reconnectDisposable.clear()
-        carelevoAlarmNotifier.stopObserving()
+        //carelevoAlarmNotifier.stopObserving()
     }
 
     private fun updateMaxBolusDose() {
@@ -236,11 +281,11 @@ class CarelevoPumpPlugin @Inject constructor(
                         Log.d("plugin_test", "[CarelevoPumpPlugin::updateMaxBolusDose] response success")
                     }
 
-                    is ResponseResult.Error -> {
+                    is ResponseResult.Error   -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::updateMaxBolusDose] response error : ${response.e}")
                     }
 
-                    else -> {
+                    else                      -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::updateMaxBolusDose] response failed")
                     }
                 }
@@ -271,11 +316,11 @@ class CarelevoPumpPlugin @Inject constructor(
                         Log.d("plugin_test", "[CarelevoPumpPlugin::updateLowInsulinNoticeAmount] response success")
                     }
 
-                    is ResponseResult.Error -> {
+                    is ResponseResult.Error   -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::updateLowInsulinNoticeAmount] response error : ${response.e}")
                     }
 
-                    else -> {
+                    else                      -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::updateLowInsulinNoticeAmount] response failed")
                     }
                 }
@@ -293,11 +338,11 @@ class CarelevoPumpPlugin @Inject constructor(
                         Log.d("plugin_test", "[CarelevoPumpPlugin::deleteUserSettingInfo] response success")
                     }
 
-                    is ResponseResult.Error -> {
+                    is ResponseResult.Error   -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::deleteUserSettingInfo] response error : ${response.e}")
                     }
 
-                    else -> {
+                    else                      -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::deleteUserSettingInfo] response failed")
                     }
                 }
@@ -498,11 +543,11 @@ class CarelevoPumpPlugin @Inject constructor(
                         Log.d("plugin_test", "[CarelevoPumpPlugin::getPumpState] response success")
                     }
 
-                    is ResponseResult.Error -> {
+                    is ResponseResult.Error   -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::getPumpState] response error : ${response.e}")
                     }
 
-                    else -> {
+                    else                      -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::getPumpState] response failed")
                     }
                 }
@@ -512,7 +557,7 @@ class CarelevoPumpPlugin @Inject constructor(
     override fun setNewBasalProfile(profile: Profile): PumpEnactResult {
         _lastDateTime = System.currentTimeMillis()
         return when (carelevoPatch.getPatchState()) {
-            is PatchState.ConnectedBooted -> {
+            is PatchState.ConnectedBooted        -> {
                 startUpdateBasalProgram(profile)
             }
 
@@ -522,7 +567,7 @@ class CarelevoPumpPlugin @Inject constructor(
                 instantiator.providePumpEnactResult().success(true).enacted(true)
             }
 
-            else -> {
+            else                                 -> {
                 instantiator.providePumpEnactResult()
             }
         }
@@ -560,11 +605,11 @@ class CarelevoPumpPlugin @Inject constructor(
                         result.enacted = true
                     }
 
-                    is ResponseResult.Error -> {
+                    is ResponseResult.Error   -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::startUpdateBasal] response error : ${response.e}")
                     }
 
-                    else -> {
+                    else                      -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::startUpdateBasal] response failed")
                     }
                 }
@@ -659,11 +704,11 @@ class CarelevoPumpPlugin @Inject constructor(
                         result.bolusDelivered = detailedBolusInfo.insulin
                     }
 
-                    is ResponseResult.Error -> {
+                    is ResponseResult.Error   -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::deliverTreatment] response error : ${response.e}")
                     }
 
-                    else -> {
+                    else                      -> {
                         Log.d("plugin_test", "[CarlevoPumpPlugin::deliverTreatment] response failed")
                     }
                 }
@@ -688,11 +733,11 @@ class CarelevoPumpPlugin @Inject constructor(
                         Log.d("plugin_test", "[CarelevoPumpPlugin::handleFinishImmeBolus] response success")
                     }
 
-                    is ResponseResult.Error -> {
+                    is ResponseResult.Error   -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::handleFinishImmeBolus] response error : ${response.e}")
                     }
 
-                    else -> {
+                    else                      -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::handleFinishImmeBolus] response failed")
                     }
                 }
@@ -716,11 +761,11 @@ class CarelevoPumpPlugin @Inject constructor(
                         isImmeBolusStop = true
                     }
 
-                    is ResponseResult.Error -> {
+                    is ResponseResult.Error   -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::stopBolusDelivering] response error : ${response.e}")
                     }
 
-                    else -> {
+                    else                      -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::stopBolusDelivering] response failed")
                     }
                 }
@@ -771,11 +816,11 @@ class CarelevoPumpPlugin @Inject constructor(
                         result.isTempCancel = false
                     }
 
-                    is ResponseResult.Error -> {
+                    is ResponseResult.Error   -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::setTempBasalAbsolute] response error : ${response.e}")
                     }
 
-                    else -> {
+                    else                      -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::setTempBasalAbsolute] response failed")
                     }
                 }
@@ -833,11 +878,11 @@ class CarelevoPumpPlugin @Inject constructor(
                         result.isTempCancel = false
                     }
 
-                    is ResponseResult.Error -> {
+                    is ResponseResult.Error   -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::setTempBasalPercent] response error : ${response.e}")
                     }
 
-                    else -> {
+                    else                      -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::setTempBasalPercent] response failed")
                     }
                 }
@@ -878,11 +923,11 @@ class CarelevoPumpPlugin @Inject constructor(
                         result.isTempCancel = true
                     }
 
-                    is ResponseResult.Error -> {
+                    is ResponseResult.Error   -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::cancelTempBasal] response error : ${response.e}")
                     }
 
-                    else -> {
+                    else                      -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::cancelTempBasal] response failed")
                     }
                 }
@@ -931,11 +976,11 @@ class CarelevoPumpPlugin @Inject constructor(
                         result.enacted = true
                     }
 
-                    is ResponseResult.Error -> {
+                    is ResponseResult.Error   -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::setExtendedBolus] response error : ${response.e}")
                     }
 
-                    else -> {
+                    else                      -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::setExtendedBolus] response failed")
                     }
                 }
@@ -976,11 +1021,11 @@ class CarelevoPumpPlugin @Inject constructor(
                         result.isTempCancel = true
                     }
 
-                    is ResponseResult.Error -> {
+                    is ResponseResult.Error   -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::cancelExtendedBolus] response error : ${response.e}")
                     }
 
-                    else -> {
+                    else                      -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::cancelExtendedBolus] response failed")
                     }
                 }
@@ -1079,7 +1124,7 @@ class CarelevoPumpPlugin @Inject constructor(
                         Log.d("plugin_test", "[CarelevoPumpPlugin::startReconnect] connect result is success")
                     }
 
-                    else -> {
+                    else                     -> {
                         Log.d("plugin_test", "[CarelevoPumpPlugin::startReconnect] connect result is failed")
                         stopReconnect()
                     }
@@ -1087,43 +1132,53 @@ class CarelevoPumpPlugin @Inject constructor(
             }
 
         reconnectDisposable += carelevoPatch.btState
+            .subscribeOn(aapsSchedulers.io)              // 실제 실행 스레드 지정
             .observeOn(aapsSchedulers.io)
-            .timeout(10000L, TimeUnit.MILLISECONDS)
+            .filter { it.orElse(null) != null }          // Optional empty 무시 (getOrNull()이 있으면 그걸로)
+            .map { it.get() }                            // 혹은 .map { it.getOrNull()!! }
+            .distinctUntilChanged()                      // 같은 상태 연속 발행 억제 (equals가 구현돼야 함)
+            .timeout(10, TimeUnit.SECONDS)
             .doOnError {
-                Log.d("plugin_test", "[CarelevoPumpPlugin::startReconnect] reconnect time out : $it")
+                Log.d("plugin_test", "[startReconnect] reconnect time out : $it")
                 stopReconnect()
             }
-            .subscribe { btState ->
-                btState.getOrNull()?.let { state ->
-                    Log.d("plugin_test", "[CarelevoPumpPlugin::startReconnect] btState : $state")
-                    if (state.shouldBeConnected()) {
-                        bleController.execute(DiscoveryService(address))
-                            .blockingGet()
-                            .takeIf { it !is CommandResult.Success }
-                            ?.let { stopReconnect() }
-                    }
+            .onErrorComplete()                           // timeout 등 에러 후 스트림 정리 (undeliverable 방지)
+            .subscribe({ state ->
+                           Log.d("plugin_test", "[startReconnect] btState : $state")
 
-                    if (state.shouldBeDiscovered()) {
-                        bleController.execute(EnableNotifications(address, txUuid))
-                            .blockingGet()
-                            .takeIf { it !is CommandResult.Success }
-                            ?.let { stopReconnect() }
-                        Thread.sleep(2000)
-                        reconnectDisposable.clear()
-                        reconnectDisposable.dispose()
-                    }
-                    if (state.isDiscoverCleared()) {
-                        stopReconnect()
-                    }
-                    if (state.isAbnormalBondingFailed()) {
-                        stopReconnect()
-                    }
-                    if (state.isReInitialized()) {
-                        stopReconnect()
-                    }
+                           if (state.shouldBeConnected()) {
+                               val r = bleController.execute(DiscoveryService(address)).blockingGet()
+                               if (r !is CommandResult.Success) {
+                                   stopReconnect()
+                                   return@subscribe
+                               }
+                           }
 
-                }
-            }
+                           if (state.shouldBeDiscovered()) {
+                               val r2 = bleController.execute(EnableNotifications(address, txUuid)).blockingGet()
+                               if (r2 !is CommandResult.Success) {
+                                   stopReconnect()
+                                   return@subscribe
+                               }
+                               // 가능하면 sleep 제거; 꼭 필요하면 최소화
+                               // Thread.sleep(2000)
+                               reconnectDisposable.clear()
+                               reconnectDisposable.dispose()
+                               return@subscribe
+                           }
+
+                           if (state.isDiscoverCleared()
+                               || state.isAbnormalBondingFailed()
+                               || state.isReInitialized()
+                           ) {
+                               stopReconnect()
+                               return@subscribe
+                           }
+                       }, { e ->
+                           // 에러 핸들러(안전망) — onErrorComplete()가 있어도 다른 에러가 날 수 있음
+                           Log.e("plugin_test", "[startReconnect] stream error", e)
+                           stopReconnect()
+                       })
     }
 
     private fun stopReconnect() {

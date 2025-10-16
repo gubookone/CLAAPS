@@ -18,13 +18,13 @@ import org.joda.time.DateTime
 import javax.inject.Inject
 
 class CarelevoPumpResumeUseCase @Inject constructor(
-    private val patchObserver : CarelevoPatchObserver,
-    private val patchRepository : CarelevoPatchRepository,
-    private val patchInfoRepository : CarelevoPatchInfoRepository,
-    private val infusionInfoRepository : CarelevoInfusionInfoRepository
+    private val patchObserver: CarelevoPatchObserver,
+    private val patchRepository: CarelevoPatchRepository,
+    private val patchInfoRepository: CarelevoPatchInfoRepository,
+    private val infusionInfoRepository: CarelevoInfusionInfoRepository
 ) {
 
-    fun execute() : Single<ResponseResult<CarelevoUseCaseResponse>> {
+    fun execute(): Single<ResponseResult<CarelevoUseCaseResponse>> {
         return Single.fromCallable {
             runCatching {
                 patchRepository.requestResumePump(ResumePumpRequest(mode = 1, causeId = 0))
@@ -36,8 +36,8 @@ class CarelevoPumpResumeUseCase @Inject constructor(
                     .ofType<ResumePumpResultModel>()
                     .blockingFirst()
 
-                if(requestResumePumpResult.result != StopPumpResult.BY_REQ) {
-                    throw IllegalStateException("request pump resume result is failed")
+                if (requestResumePumpResult.result != StopPumpResult.BY_REQ) {
+                    throw IllegalStateException("request pump resume result is failed: ${requestResumePumpResult.result}")
                 }
 
                 val infusionInfo = infusionInfoRepository.getInfusionInfoBySync()
@@ -49,7 +49,7 @@ class CarelevoPumpResumeUseCase @Inject constructor(
                     basalInfusionInfo.copy(updatedAt = DateTime.now(), mode = 1, isStop = false)
                 )
 
-                if(!updateInfusionInfoResult) {
+                if (!updateInfusionInfoResult) {
                     throw IllegalStateException("update infusion info is failed")
                 }
 
@@ -59,7 +59,7 @@ class CarelevoPumpResumeUseCase @Inject constructor(
                 val updatePatchInfoResult = patchInfoRepository.updatePatchInfo(
                     patchInfo.copy(isStopped = false, stopMinutes = null, stopMode = null, isForceStopped = null, mode = 1)
                 )
-                if(!updatePatchInfoResult) {
+                if (!updatePatchInfoResult) {
                     throw IllegalStateException("update patch info is failed")
                 }
                 ResultSuccess

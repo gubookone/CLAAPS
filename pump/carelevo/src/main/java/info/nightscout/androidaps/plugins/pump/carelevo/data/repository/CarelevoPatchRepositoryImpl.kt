@@ -60,12 +60,12 @@ import io.reactivex.rxjava3.core.Single
 import javax.inject.Inject
 
 class CarelevoPatchRepositoryImpl @Inject constructor(
-    private val btPatchRemoteDataSource : CarelevoBtPatchRemoteDataSource
+    private val btPatchRemoteDataSource: CarelevoBtPatchRemoteDataSource
 ) : CarelevoPatchRepository {
 
     override fun getResponseResult(): Observable<ResponseResult<BtResponse>> {
         return btPatchRemoteDataSource.getPatchResponse().map {
-            when(it) {
+            when (it) {
                 is BleResponse.RspResponse -> ResponseResult.Success(transformToDomainModel(it.data))
                 is BleResponse.Error       -> ResponseResult.Error(it.e)
                 is BleResponse.Failure     -> ResponseResult.Failure(it.message)
@@ -261,8 +261,8 @@ class CarelevoPatchRepositoryImpl @Inject constructor(
         }
     }
 
-    private fun mapToResult(result : CommandResult<Boolean>) : RequestResult<Boolean> {
-        return when(result) {
+    private fun mapToResult(result: CommandResult<Boolean>): RequestResult<Boolean> {
+        return when (result) {
             is CommandResult.Pending -> RequestResult.Pending(result.data)
             is CommandResult.Success -> RequestResult.Success(result.data)
             is CommandResult.Error   -> RequestResult.Error(result.e)
@@ -270,8 +270,8 @@ class CarelevoPatchRepositoryImpl @Inject constructor(
         }
     }
 
-    private fun transformToDomainModel(source : ProtocolRspModel) : BtResponse? {
-        return when(source) {
+    private fun transformToDomainModel(source: ProtocolRspModel): BtResponse? {
+        return when (source) {
             is ProtocolSetTimeRspModel                       -> source.transformToDomainModel()
             is ProtocolSafetyCheckRspModel                   -> source.transformToDomainModel()
             is ProtocolPatchInformationInquiryRptModel       -> source.transformToDomainModel()

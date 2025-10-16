@@ -70,6 +70,7 @@
                     android:id="@+id/container_expired_time"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:visibility="gone"
                     app:bottomLineVisible="@{false}"
                     app:keyText="@{@string/carelevo_expiration_key}"
                     app:layout_constraintTop_toBottomOf="@+id/container_boot_time"
@@ -77,12 +78,22 @@
                     app:valueText="@{String.valueOf(viewModel.expirationTime)}" />
 
                 <info.nightscout.androidaps.plugins.pump.carelevo.ui.widget.CarelevoKeyValueRowView
+                    android:id="@+id/container_running_remain_minutes"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:bottomLineVisible="@{true}"
+                    app:keyText="@{@string/carelevo_running_remain_time}"
+                    app:layout_constraintTop_toBottomOf="@+id/container_expired_time"
+                    app:topLineVisible="@{false}"
+                    app:valueText="@{ViewExtKt.convertMinutesToDaysComputeHoursMinutes(context, viewModel.runningRemainMinutes)}" />
+
+                <info.nightscout.androidaps.plugins.pump.carelevo.ui.widget.CarelevoKeyValueRowView
                     android:id="@+id/container_pump_state"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     app:bottomLineVisible="@{false}"
                     app:keyText="@{@string/carelevo_infusion_status_key}"
-                    app:layout_constraintTop_toBottomOf="@+id/container_expired_time"
+                    app:layout_constraintTop_toBottomOf="@+id/container_running_remain_minutes"
                     app:topLineVisible="@{true}"
                     app:valueText="@{ViewExtKt.setInfusionStateText(viewModel.infusionStatus, context)}" />
 
@@ -135,17 +146,6 @@
                     app:layout_constraintTop_toBottomOf="@+id/container_total_delivery_doze"
                     app:topLineVisible="@{false}"
                     app:valueText="@{String.valueOf(viewModel.totalDeliveredBolusAmount)}" />
-
-
-                <info.nightscout.androidaps.plugins.pump.carelevo.ui.widget.CarelevoKeyValueRowView
-                    android:id="@+id/container_running_remain_minutes"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:bottomLineVisible="@{true}"
-                    app:keyText="@{@string/carelevo_running_remain_time}"
-                    app:layout_constraintTop_toBottomOf="@+id/container_total_delivery_bolus_doze"
-                    app:topLineVisible="@{true}"
-                    app:valueText="@{ViewExtKt.convertMinutesToDaysComputeHoursMinutes(context, viewModel.runningRemainMinutes)}" />
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 

@@ -398,3 +398,4 @@ internal fun ProtocolAppAuthAckRspModel.transformToDomainModel() = AppAuthAckRpt
     command = command,
     result = result
 )
+

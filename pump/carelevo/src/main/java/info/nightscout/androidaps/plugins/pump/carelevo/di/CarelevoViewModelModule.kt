@@ -8,6 +8,7 @@ import dagger.Provides
 import dagger.multibindings.IntoMap
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.base.CarelevoViewModelFactory
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.base.ViewModelKey
+import info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoAlarmViewModel
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoCommunicationCheckViewModel
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoOverviewViewModel
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoPatchCannulaInsertionViewModel
@@ -72,4 +73,10 @@ abstract class CarelevoViewModelModule {
     @CarelevoPluginQualifier
     @ViewModelKey(CarelevoPatchConnectViewModel::class)
     abstract fun bindCarelevoConnectPatchViewModel(viewModel: CarelevoPatchConnectViewModel): ViewModel
+
+    @Binds
+    @IntoMap
+    @CarelevoPluginQualifier
+    @ViewModelKey(CarelevoAlarmViewModel::class)
+    abstract fun bindCarelevoAlarmViewModel(viewModel: CarelevoAlarmViewModel): ViewModel
 }

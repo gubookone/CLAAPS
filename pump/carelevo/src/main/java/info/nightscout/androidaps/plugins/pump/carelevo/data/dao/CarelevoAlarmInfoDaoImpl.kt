@@ -65,22 +65,27 @@ class CarelevoAlarmInfoDaoImpl @Inject constructor(
         return Completable.fromAction {
             val current = ensureLoaded()
 
-            // 같은 alarmType, cause 조합이 있고 acknowledged == false 이면 skip
-            val hasUnacknowledged = current.any {
+            // 동일한 타입+원인 & 미확인 알람 찾기
+            val idx = current.indexOfFirst {
                 it.alarmType == entity.alarmType &&
-                    it.cause == entity.cause && !it.acknowledged
-            }
-            if (hasUnacknowledged) {
-                // 그냥 return해서 추가/수정하지 않음
-                return@fromAction
+                    it.cause == entity.cause &&
+                    !it.acknowledged
             }
 
-            val idx = current.indexOfFirst { it.alarmId == entity.alarmId }
             val next = if (idx >= 0) {
-                current.toMutableList().apply { set(idx, entity) }
+                // 기존 알람 → count + 1, updatedAt 갱신
+                current.toMutableList().apply {
+                    val existing = this[idx]
+                    this[idx] = existing.copy(
+                        updatedAt = entity.updatedAt,
+                        occurrenceCount = existing.occurrenceCount + 1
+                    )
+                }
             } else {
-                current + entity
+                // 신규 알람 추가
+                current + entity.copy(occurrenceCount = 1)
             }
+
             saveList(next)
             _alarms.onNext(Optional.of(next))
         }

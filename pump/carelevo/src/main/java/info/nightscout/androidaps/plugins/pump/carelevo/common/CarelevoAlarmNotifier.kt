@@ -3,20 +3,22 @@ package info.nightscout.androidaps.plugins.pump.carelevo.common
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
+import android.media.MediaPlayer
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ProcessLifecycleOwner
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.alarm.CarelevoAlarmInfo
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.alarm.CarelevoAlarmInfoUseCase
+import info.nightscout.androidaps.plugins.pump.carelevo.ui.activities.CarelevoAlarmActivity
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.kotlin.plusAssign
+import io.reactivex.rxjava3.schedulers.Schedulers
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/*
- * Project   : CareLevoAAPS
- * File      : CarelevoAlarmNotifier
- * Package   : info.nightscout.androidaps.plugins.pump.carelevo.common
- * Created   : 2025. 9. 5. AM 9:48
- */
 @Singleton
 class CarelevoAlarmNotifier @Inject constructor(
     private val context: Context,
@@ -26,33 +28,51 @@ class CarelevoAlarmNotifier @Inject constructor(
     private val disposables = CompositeDisposable()
     private val channelId = "carelevo_alarm_channel"
 
+    private var previousAlarms: List<CarelevoAlarmInfo> = emptyList()
+
     fun startObserving() {
         createNotificationChannel()
+        disposables += alarmUseCase.observeAlarms()
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({ optionalList ->
+                           val alarms = optionalList.orElse(emptyList())
+                           Log.d("AlarmObserver", "observeAlarms: ${alarms.size}")
+                           alarms.forEach { newAlarm ->
+                               Log.d("AlarmObserver", "observeAlarms: $newAlarm")
+                               val oldAlarm = previousAlarms.find { it.alarmId == newAlarm.alarmId }
 
-        disposables.add(
-            alarmUseCase.getAlarmsOnce(true)
-                .toObservable()
-                .concatWith(alarmUseCase.observeAlarms())
-                .subscribe(
-                    { optionalList ->
-                        val alarms = optionalList.orElse(emptyList())
-                        alarms.forEach { alarm ->
-                            Log.d("CarelevoAlarmNotifier", "[CarelevoAlarmNotifier::getAlarmsOnce] alarm : $alarm")
-                            if (!alarm.acknowledged) {
-                                showNotification(alarm)
-                                /*Intent(context, CarelevoActivity::class.java).apply {
-                                    putExtra("screenType", CarelevoScreenType.CONNECTION_FLOW_START)
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    context.startActivity(this)
-                                }*/
-                            }
-                        }
-                    },
-                    { e ->
-                        Log.e("CarelevoAlarmNotifier", "Error loading alarms once", e)
-                    }
-                )
-        )
+                               if (oldAlarm != null) {
+                                   when {
+                                       // acknowledged 상태가 false → true 로 바뀐 경우
+                                       !oldAlarm.isAcknowledged && newAlarm.isAcknowledged    -> {
+                                           cancelNotification(newAlarm.alarmId)
+                                       }
+                                       // acknowledged 는 그대로인데 occurrenceCount만 증가한 경우
+                                       oldAlarm.occurrenceCount != newAlarm.occurrenceCount &&
+                                           oldAlarm.isAcknowledged == newAlarm.isAcknowledged -> {
+                                           Log.d("AlarmObserver", "occurrenceCount updated: ${newAlarm.occurrenceCount}")
+                                           playBeep()
+                                       }
+                                   }
+                               } else {
+                                   // 신규 알람 (리스트에 없던 것)
+                                   if (!newAlarm.isAcknowledged) {
+                                       if (isInForeground) {
+                                           showAlarmScreen()
+                                       } else {
+                                           // 앱이 백그라운드면 알림만 표시
+                                           showNotification(newAlarm)
+                                       }
+                                   }
+                               }
+                           }
+
+                           previousAlarms = alarms
+
+                       }, { e ->
+                           Log.e("AlarmObserver", "observeAlarms error", e)
+                       })
     }
 
     fun stopObserving() {
@@ -86,4 +106,26 @@ class CarelevoAlarmNotifier @Inject constructor(
             context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.createNotificationChannel(channel)
     }
+
+    private fun cancelNotification(alarmId: String) {
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.cancel(alarmId.hashCode())
+    }
+
+    private fun playBeep() {
+        val player = MediaPlayer.create(context, app.aaps.core.ui.R.raw.error) // res/raw/alarm_sound.mp3
+        player.setOnCompletionListener { it.release() }
+        player.start()
+    }
+
+    fun showAlarmScreen() {
+        val intent = Intent(context, CarelevoAlarmActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+        context.startActivity(intent)
+    }
+
+    val isInForeground: Boolean
+        get() = ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
 }

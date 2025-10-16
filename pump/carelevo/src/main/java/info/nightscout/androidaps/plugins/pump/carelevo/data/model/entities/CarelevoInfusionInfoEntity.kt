@@ -64,7 +64,9 @@ data class CarelevoAlarmInfoEntity(
     val alarmId: String,
     val alarmType: Int,
     val cause: AlarmCause,
+    val value: Int? = null,
     val createdAt: String = DateTime.now().toString(),
     val updatedAt: String,
-    val acknowledged: Boolean  // 확인 여부
+    val acknowledged: Boolean,  // 확인 여부
+    val occurrenceCount: Int = 1   // 발생 횟수 (기본값 1)
 )

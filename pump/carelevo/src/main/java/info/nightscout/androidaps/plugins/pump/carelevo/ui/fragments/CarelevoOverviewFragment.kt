@@ -3,6 +3,7 @@ package info.nightscout.androidaps.plugins.pump.carelevo.ui.fragments
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
@@ -15,6 +16,7 @@ import info.nightscout.androidaps.plugins.pump.carelevo.common.model.State
 import info.nightscout.androidaps.plugins.pump.carelevo.common.model.UiState
 import info.nightscout.androidaps.plugins.pump.carelevo.databinding.FragmentCarelevoOverviewBinding
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.activities.CarelevoActivity
+import info.nightscout.androidaps.plugins.pump.carelevo.ui.activities.CarelevoAlarmActivity
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.base.CarelevoBaseCircleProgress
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.base.CarelevoBaseFragment
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.ext.repeatOnStartedWithViewOwner
@@ -56,10 +58,10 @@ class CarelevoOverviewFragment : CarelevoBaseFragment<FragmentCarelevoOverviewBi
         with(binding) {
             btnConnect.setOnClickListener {
                 when (this@CarelevoOverviewFragment.viewModel.bleState.value) {
-                    PatchState.NotConnectedBooted -> startCarelevoActivity(CarelevoScreenType.COMMUNICATION_CHECK)
+                    PatchState.NotConnectedBooted     -> startCarelevoActivity(CarelevoScreenType.COMMUNICATION_CHECK)
                     PatchState.NotConnectedNotBooting -> startCarelevoActivity(CarelevoScreenType.CONNECTION_FLOW_START)
-                    PatchState.ConnectedBooted -> ToastUtils.infoToast(requireContext(), ContextCompat.getString(requireContext(), R.string.carelevo_toast_patch_connecting))
-                    else -> Unit
+                    PatchState.ConnectedBooted        -> ToastUtils.infoToast(requireContext(), ContextCompat.getString(requireContext(), R.string.carelevo_toast_patch_connecting))
+                    else                              -> Unit
                 }
             }
 
@@ -92,19 +94,44 @@ class CarelevoOverviewFragment : CarelevoBaseFragment<FragmentCarelevoOverviewBi
                 handleState(it)
             }
         }
+
+        repeatOnStartedWithViewOwner {
+            viewModel.isCheckScreen.collect { screenType ->
+                screenType?.let {
+                    startCarelevoActivity(it)
+                }
+            }
+        }
+
+        repeatOnStartedWithViewOwner {
+            viewModel.hasUnacknowledgedAlarms.collect { hasAlarm ->
+                Log.d("alarmQueue", "[CarelevoOverviewFragment::setupObserver] hasAlarm : $hasAlarm")
+                if (hasAlarm) {
+                    viewModel.initUnacknowledgedAlarms()
+                    showAlarmScreen()
+                }
+            }
+        }
+    }
+
+    fun showAlarmScreen() {
+        val intent = Intent(context, CarelevoAlarmActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+        requireContext().startActivity(intent)
     }
 
     private fun handleState(state: State) {
         when (state) {
-            is UiState.Idle -> hideFullScreenProgress()
+            is UiState.Idle    -> hideFullScreenProgress()
             is UiState.Loading -> showFullScreenProgress()
-            else -> hideFullScreenProgress()
+            else               -> hideFullScreenProgress()
         }
     }
 
     private fun handleEvent(event: Event) {
         when (event) {
-            is CarelevoOverviewEvent.ShowMessageBluetoothNotEnabled -> {
+            is CarelevoOverviewEvent.ShowMessageBluetoothNotEnabled    -> {
                 ToastUtils.infoToast(requireContext(), getString(R.string.carelevo_toast_msg_bluetooth_not_enabled))
             }
 
@@ -112,39 +139,39 @@ class CarelevoOverviewFragment : CarelevoBaseFragment<FragmentCarelevoOverviewBi
                 ToastUtils.infoToast(requireContext(), getString(R.string.carelevo_toast_msg_patch_not_connected))
             }
 
-            is CarelevoOverviewEvent.DiscardComplete -> {
+            is CarelevoOverviewEvent.DiscardComplete                   -> {
                 ToastUtils.infoToast(requireContext(), getString(R.string.carelevo_toast_msg_discard_complete))
             }
 
-            is CarelevoOverviewEvent.DiscardFailed -> {
+            is CarelevoOverviewEvent.DiscardFailed                     -> {
                 ToastUtils.infoToast(requireContext(), getString(R.string.carelevo_toast_msg_discard_failed))
             }
 
-            is CarelevoOverviewEvent.ResumePumpComplete -> {
+            is CarelevoOverviewEvent.ResumePumpComplete                -> {
                 ToastUtils.infoToast(requireContext(), getString(R.string.carelevo_toast_mag_set_basal_resume_success))
             }
 
-            is CarelevoOverviewEvent.ResumePumpFailed -> {
+            is CarelevoOverviewEvent.ResumePumpFailed                  -> {
                 ToastUtils.infoToast(requireContext(), getString(R.string.carelevo_toast_mag_set_basal_resume_fail))
             }
 
-            is CarelevoOverviewEvent.StopPumpComplete -> {
+            is CarelevoOverviewEvent.StopPumpComplete                  -> {
                 ToastUtils.infoToast(requireContext(), getString(R.string.carelevo_toast_mag_set_basal_suspend_success))
             }
 
-            is CarelevoOverviewEvent.StopPumpFailed -> {
+            is CarelevoOverviewEvent.StopPumpFailed                    -> {
                 ToastUtils.infoToast(requireContext(), getString(R.string.carelevo_toast_mag_set_basal_suspend_fail))
             }
 
-            is CarelevoOverviewEvent.ShowPumpResumeDialog -> {
+            is CarelevoOverviewEvent.ShowPumpResumeDialog              -> {
                 showPumpResumeConfirmDialog()
             }
 
-            is CarelevoOverviewEvent.ShowPumpStopDurationSelectDialog -> {
+            is CarelevoOverviewEvent.ShowPumpStopDurationSelectDialog  -> {
                 showPumpStopDurationSelectDialog()
             }
 
-            else -> Unit
+            else                                                       -> Unit
         }
     }
 

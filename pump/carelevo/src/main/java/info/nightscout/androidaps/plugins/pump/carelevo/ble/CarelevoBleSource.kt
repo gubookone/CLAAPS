@@ -14,9 +14,9 @@ import io.reactivex.rxjava3.subjects.PublishSubject
 
 object CarelevoBleSource {
 
-    val bleCommandChains : PublishSubject<MutableList<BleCommand>> = PublishSubject.create()
+    val bleCommandChains: PublishSubject<MutableList<BleCommand>> = PublishSubject.create()
 
-    val _bluetoothState : BehaviorSubject<BleState> = BehaviorSubject.createDefault(
+    internal val _bluetoothState: BehaviorSubject<BleState> = BehaviorSubject.createDefault(
         BleState(
             isEnabled = DeviceModuleState.DEVICE_NONE,
             isBonded = BondingState.BOND_NONE,
@@ -27,9 +27,9 @@ object CarelevoBleSource {
     )
     val bluetoothState get() = _bluetoothState
 
-    val _scanDevices : BehaviorSubject<PeripheralScanResult> = BehaviorSubject.createDefault(PeripheralScanResult.Init(listOf()))
+    val _scanDevices: BehaviorSubject<PeripheralScanResult> = BehaviorSubject.createDefault(PeripheralScanResult.Init(listOf()))
     val scanDevices get() = _scanDevices
 
-    val _notifyIndicateBytes : PublishSubject<CharacterResult> = PublishSubject.create()
+    val _notifyIndicateBytes: PublishSubject<CharacterResult> = PublishSubject.create()
     val notifyIndicateByte get() = _notifyIndicateBytes
 }

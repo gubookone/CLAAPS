@@ -1,6 +1,8 @@
 package info.nightscout.androidaps.plugins.pump.carelevo.ui.model
 
+import androidx.annotation.StringRes
 import info.nightscout.androidaps.plugins.pump.carelevo.common.model.Event
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.alarm.CarelevoAlarmInfo
 
 sealed class CarelevoOverviewEvent : Event {
 
@@ -62,8 +64,8 @@ sealed class CarelevoConnectCannulaEvent : Event {
     data object ShowMessageBluetoothNotEnabled : CarelevoConnectCannulaEvent()
     data object ShowMessageCarelevoIsNotConnected : CarelevoConnectCannulaEvent()
     data object ShowMessageProfileNotSet : CarelevoConnectCannulaEvent()
-    data class CheckCannulaComplete(val result : Boolean) : CarelevoConnectCannulaEvent()
-    data object CheckCannulaFailed : CarelevoConnectCannulaEvent()
+    data class CheckCannulaComplete(val result: Boolean) : CarelevoConnectCannulaEvent()
+    data class CheckCannulaFailed(val failedCount: Int) : CarelevoConnectCannulaEvent()
     data object DiscardComplete : CarelevoConnectCannulaEvent()
     data object DiscardFailed : CarelevoConnectCannulaEvent()
     data object SetBasalComplete : CarelevoConnectCannulaEvent()
@@ -80,4 +82,13 @@ sealed class CarelevoCommunicationCheckEvent : Event {
     data object DiscardComplete : CarelevoCommunicationCheckEvent()
     data object DiscardFailed : CarelevoCommunicationCheckEvent()
 
+}
+
+sealed class AlarmEvent : Event {
+    data object NoAction : AlarmEvent()
+    data class ClearAlarm(val info: CarelevoAlarmInfo) : AlarmEvent()
+    data object RequestBluetoothEnable : AlarmEvent()
+    data class ShowToastMessage(
+        @StringRes val messageRes: Int
+    ) : AlarmEvent()
 }

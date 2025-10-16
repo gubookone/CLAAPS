@@ -60,7 +60,7 @@ class CarelevoPatchCannulaInsertionCheckUseCase @Inject constructor(
                         val patchInfo = patchInfoRepository.getPatchInfoBySync()
                             ?: throw NullPointerException("patch info must be not null")
                         val updatePatchInfoResult = patchInfoRepository.updatePatchInfo(
-                            patchInfo.copy(updatedAt = DateTime.now(), checkNeedle = false, needleFailedCount = patchInfo.needleFailedCount)
+                            patchInfo.copy(updatedAt = DateTime.now(), checkNeedle = false, needleFailedCount = (patchInfo.needleFailedCount ?: 0) + 1)
                         )
                         if (!updatePatchInfoResult) {
                             throw IllegalStateException("update patch info is failed")

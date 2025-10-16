@@ -5,15 +5,11 @@ import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.Carele
 import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Single
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.Optional
 import javax.inject.Inject
 
-/*
- * Project   : CareLevoAAPS
- * File      : CarelevoAlarmInfoUseCase
- * Package   : info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.alarm
- * Created   : 2025. 9. 4. PM 6:32
- */
 class CarelevoAlarmInfoUseCase @Inject constructor(
     private val repository: CarelevoAlarmInfoRepository
 ) {
@@ -21,13 +17,13 @@ class CarelevoAlarmInfoUseCase @Inject constructor(
     fun observeAlarms(): Observable<Optional<List<CarelevoAlarmInfo>>> =
         repository.observeAlarms()
 
-    fun getAlarmsOnce(includeUnacknowledged: Boolean = true): Single<Optional<List<CarelevoAlarmInfo>>> = repository.getAlarmsOnce(includeUnacknowledged)
+    fun getAlarmsOnce(includeUnacknowledged: Boolean = false): Single<Optional<List<CarelevoAlarmInfo>>> = repository.getAlarmsOnce(includeUnacknowledged)
 
     fun upsertAlarm(alarm: CarelevoAlarmInfo): Completable =
         repository.upsertAlarm(alarm)
 
-    fun acknowledgeAlarm(alarmId: String, now: String): Completable =
-        repository.markAcknowledged(alarmId, acknowledged = true, updatedAt = now)
+    fun acknowledgeAlarm(alarmId: String): Completable =
+        repository.markAcknowledged(alarmId, acknowledged = true, updatedAt = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd hh:mm:ss")))
 
     fun clearAlarms(): Completable =
         repository.clearAlarms()

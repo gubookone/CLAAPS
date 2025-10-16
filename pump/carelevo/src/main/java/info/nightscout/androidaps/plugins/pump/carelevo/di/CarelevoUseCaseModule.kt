@@ -10,6 +10,8 @@ import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.Carele
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.CarelevoPatchInfoRepository
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.CarelevoPatchRepository
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.repository.CarelevoUserSettingInfoRepository
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.alarm.AlarmClearPatchDiscardUseCase
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.alarm.AlarmClearRequestUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.alarm.CarelevoAlarmInfoUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.basal.CarelevoCancelTempBasalInfusionUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.basal.CarelevoSetBasalProgramUseCase
@@ -390,5 +392,23 @@ class CarelevoUseCaseModule {
         carelevoAlarmInfoRepository: CarelevoAlarmInfoRepository
     ): CarelevoAlarmInfoUseCase {
         return CarelevoAlarmInfoUseCase(carelevoAlarmInfoRepository)
+    }
+
+    @Provides
+    fun provideAlarmClearRequestUseCase(
+        patchObserver: CarelevoPatchObserver,
+        patchRepository: CarelevoPatchRepository,
+        alarmRepository: CarelevoAlarmInfoRepository
+    ): AlarmClearRequestUseCase {
+        return AlarmClearRequestUseCase(patchObserver, patchRepository, alarmRepository)
+    }
+
+    @Provides
+    fun provideAlarmClearPatchDiscardUseCase(
+        patchObserver: CarelevoPatchObserver,
+        patchRepository: CarelevoPatchRepository,
+        alarmRepository: CarelevoAlarmInfoRepository
+    ): AlarmClearPatchDiscardUseCase {
+        return AlarmClearPatchDiscardUseCase(patchObserver, patchRepository, alarmRepository)
     }
 }
