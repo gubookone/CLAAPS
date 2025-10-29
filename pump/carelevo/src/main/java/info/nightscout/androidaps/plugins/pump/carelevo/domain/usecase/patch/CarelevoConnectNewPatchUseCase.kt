@@ -142,7 +142,7 @@ class CarelevoConnectNewPatchUseCase @Inject constructor(
                 }
 
                 Log.d("connect_test", "[CarelevoRxConnectNewPatchUseCase] : ${request.volume}, ${request.expiry}, ${request.maxBasalSpeed}, ${request.maxVolume}")
-                patchRepository.requestSetThreshold(ThresholdSetRequest(request.volume, request.expiry, request.maxBasalSpeed, request.maxVolume, true))
+                patchRepository.requestSetThreshold(ThresholdSetRequest(request.volume, request.expiry, request.maxBasalSpeed, request.maxVolume, request.isBuzzOn))
                     .blockingGet()
                     .takeIf { it is RequestResult.Pending } ?: throw IllegalStateException("request set time is not pending")
 

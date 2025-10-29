@@ -1,6 +1,7 @@
 package info.nightscout.androidaps.plugins.pump.carelevo.ui.activities
 
 import android.app.Activity
+import android.app.NotificationManager
 import android.bluetooth.BluetoothAdapter
 import android.content.Intent
 import android.os.Bundle
@@ -8,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.lifecycle.ViewModelProvider
 import app.aaps.core.ui.activities.TranslatedDaggerAppCompatActivity
+import info.nightscout.androidaps.plugins.pump.carelevo.R
 import info.nightscout.androidaps.plugins.pump.carelevo.di.CarelevoPluginQualifier
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.alarm.CarelevoAlarmInfo
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.type.AlarmCause
@@ -39,7 +41,7 @@ class CarelevoAlarmActivity : TranslatedDaggerAppCompatActivity() {
         // 알람 불러오기
         viewModel.loadUnacknowledgedAlarms()
         setupObserver()
-
+        cancelNotification()
     }
 
     private fun setupObserver() {
@@ -67,8 +69,13 @@ class CarelevoAlarmActivity : TranslatedDaggerAppCompatActivity() {
     private fun handleEvent(event: AlarmEvent) {
         when (event) {
             AlarmEvent.RequestBluetoothEnable -> handleRequestBluetoothEnable()
-            else                              -> Unit
+            else -> Unit
         }
+    }
+
+    private fun cancelNotification() {
+        val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.cancelAll()
     }
 
     private fun handleRequestBluetoothEnable() {
@@ -79,35 +86,67 @@ class CarelevoAlarmActivity : TranslatedDaggerAppCompatActivity() {
     private fun showAlarmDialog(alarm: CarelevoAlarmInfo) {
         val (titleRes, descRes, btnRes) = alarm.cause.transformStringResources()
 
-        val descArgs: List<String>? = when (alarm.cause) {
-            AlarmCause.ALARM_ALERT_OUT_OF_INSULIN -> {
-                //인슐린 부족 주의
-                listOf(
-                    (alarm.value ?: 0).toString()
-                )
-            }
+        val descArgs = buildDescArgsFor(alarm)
+        val desc = buildDescription(descRes, descArgs)
 
-            else                                  -> emptyList()
+        CarelevoAlarmDialog.Builder()
+            .setTitle("${getString(titleRes)}(${alarm.createdAt})")
+            .setContent(desc)
+            .setPrimaryButton(
+                CarelevoAlarmDialog.Button(
+                    text = getString(btnRes),
+                    onClickListener = {
+                        viewModel.triggerEvent(AlarmEvent.ClearAlarm(info = alarm))
+                    }
+                )
+            )
+            .build()
+            .show(supportFragmentManager, "")
+    }
+
+    /** descRes에 들어갈 가변 인자들을 원인별로 생성 */
+    private fun buildDescArgsFor(alarm: CarelevoAlarmInfo): List<String> = when (alarm.cause) {
+        AlarmCause.ALARM_NOTICE_LOW_INSULIN,
+        AlarmCause.ALARM_ALERT_OUT_OF_INSULIN -> {
+            listOf((alarm.value ?: 0).toString())
         }
 
-        val desc = descRes?.let {
-            if (descArgs.isNullOrEmpty()) {
-                getString(descRes)
-            } else {
-                getString(descRes, *descArgs.toTypedArray())
-            }
-        } ?: ""
+        AlarmCause.ALARM_NOTICE_PATCH_EXPIRED -> {
+            val totalHours = alarm.value ?: 0
+            val (days, hours) = splitDaysAndHours(totalHours)
+            listOf(days.toString(), hours.toString())
+        }
 
-        CarelevoAlarmDialog.Builder().setTitle(
-            "${getString(titleRes)}(${alarm.createdAt})"
-        ).setContent(
-            desc
-        ).setPrimaryButton(
-            CarelevoAlarmDialog.Button(
-                text = getString(btnRes),
-                onClickListener = {
-                    viewModel.triggerEvent(AlarmEvent.ClearAlarm(info = alarm))
-                }
-            )).build().show(supportFragmentManager, "")
+        AlarmCause.ALARM_NOTICE_BG_CHECK -> {
+            val totalMinutes = alarm.value ?: 0
+            listOf(formatBgCheckDuration(totalMinutes))
+        }
+
+        else -> emptyList()
+    }
+
+    private fun buildDescription(@androidx.annotation.StringRes descRes: Int?, args: List<String>): String {
+        return descRes?.let { resId ->
+            if (args.isEmpty()) getString(resId) else getString(resId, *args.toTypedArray())
+        } ?: ""
+    }
+
+    private fun splitDaysAndHours(totalHours: Int): Pair<Int, Int> {
+        val days = totalHours / 24
+        val hours = totalHours % 24
+        return days to hours
+    }
+
+    private fun formatBgCheckDuration(totalMinutes: Int): String {
+        val hours = totalMinutes / 60
+        val minutes = totalMinutes % 60
+        return when {
+            hours > 0 && minutes > 0 ->
+                getString(R.string.common_label_unit_value_duration_hour_and_minute, hours, minutes)
+            hours > 0 ->
+                getString(R.string.common_label_unit_value_duration_hour, hours)
+            else ->
+                getString(R.string.common_label_unit_value_minute, minutes)
+        }
     }
 }

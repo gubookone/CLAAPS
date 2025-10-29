@@ -24,15 +24,15 @@ import io.reactivex.rxjava3.core.Single
 import javax.inject.Inject
 
 class CarelevoBtPatchRemoteDataSourceImpl @Inject constructor(
-    private val bleController : CarelevoBleController,
-    private val provider : CarelevoProtocolParserProvider
+    private val bleController: CarelevoBleController,
+    private val provider: CarelevoProtocolParserProvider
 ) : CarelevoBtPatchRemoteDataSource {
 
     private val _patchResponse = CarelevoBleSource.notifyIndicateByte
         .flatMap { charResult ->
             charResult.value?.run {
                 val command = first()
-                if(isPatchProtocol(command.toUByte().toInt())) {
+                if (isPatchProtocol(command.toUByte().toInt())) {
                     val res = runCatching {
                         handleBtResponse<ByteArray, ProtocolRspModel> {
                             val model = provider.getModel(command.toUByte().toInt())
@@ -167,11 +167,11 @@ class CarelevoBtPatchRemoteDataSourceImpl @Inject constructor(
 
     override fun setThresholdNotice(value: Int, type: Int): Single<CommandResult<Boolean>> {
         return runCatching {
-            if(type == 1) {
+            if (type == 1) {
                 createMessage(
                     byteArrayOf(CarelevoProtocolCommand.CMD_NOTICE_THRESHOLD_REQ.commandToCode()),
                     CarelevoIntegerToByteTransformerImpl(0, 0).transform(type),
-                    CarelevoIntegerToByteTransformerImpl(1, 24).transform(value)
+                    CarelevoIntegerToByteTransformerImpl(24, 167).transform(value)
                 )
             } else {
                 createMessage(

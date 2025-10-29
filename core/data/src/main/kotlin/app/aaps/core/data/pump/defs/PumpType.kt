@@ -434,7 +434,6 @@ enum class PumpType(
         source = Source.Carelevo
     ),
 
-
     //Medtrum Nano Pump
     MEDTRUM_NANO(
         description = "Medtrum Nano",
@@ -534,7 +533,7 @@ enum class PumpType(
         MDI,
         VirtualPump,
         Unknown,
-        EQuil
+        EQuil,
     }
 
     companion object {

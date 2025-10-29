@@ -4,7 +4,7 @@ import info.nightscout.androidaps.plugins.pump.carelevo.data.model.ble.ProtocolM
 import info.nightscout.androidaps.plugins.pump.carelevo.data.protocol.parser.CarelevoProtocolParser
 
 class CarelevoProtocolMsgSolutionParserImpl(
-    override val command : Int
+    override val command: Int
 ) : CarelevoProtocolParser<ByteArray, ProtocolMsgSolutionRspModel> {
 
     override fun parse(data: ByteArray): ProtocolMsgSolutionRspModel {
@@ -15,11 +15,11 @@ class CarelevoProtocolMsgSolutionParserImpl(
         val result = data[3].toUByte().toInt()
 
         return ProtocolMsgSolutionRspModel(
-            timestamp,
-            cmd,
-            subId,
-            cause,
-            result
+            timestamp = timestamp,
+            command = cmd,
+            subId = subId,
+            cause = cause,
+            result = result
         )
     }
 }

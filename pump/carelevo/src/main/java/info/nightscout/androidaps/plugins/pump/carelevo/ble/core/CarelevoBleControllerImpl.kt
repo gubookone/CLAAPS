@@ -97,32 +97,32 @@ class CarelevoBleControllerImpl @Inject constructor(
 
     override fun execute(command: BleCommand): Single<CommandResult<Boolean>> {
         when (command) {
-            is StartScan              -> with(command) {
+            is StartScan -> with(command) {
                 return Single.just(btManager.startScan(scanFilter))
                 // return btManager.startScan(scanFilter)
             }
 
-            is StopScan               -> {
+            is StopScan -> {
                 return Single.just(btManager.stopScan())
                 // return btManager.stopScan()
             }
 
-            is Connect                -> with(command) {
+            is Connect -> with(command) {
                 return connectToSingle(address)
                 // return btManager.connectTo(address)
             }
 
-            is Disconnect             -> {
+            is Disconnect -> {
                 return Single.just(btManager.disconnectFrom())
                 // return btManager.disconnectFrom()
             }
 
-            is DiscoveryService       -> {
+            is DiscoveryService -> {
                 return Single.just(btManager.discoverService())
                 // return btManager.discoverService()
             }
 
-            is WriteToCharacteristic  -> with(command) {
+            is WriteToCharacteristic -> with(command) {
                 return Single.just(btManager.writeCharacteristic(uuid = characteristicUuid, payload = payload))
                 // return btManager.writeCharacteristic(uuid = characteristicUuid, payload = payload)
             }
@@ -132,22 +132,22 @@ class CarelevoBleControllerImpl @Inject constructor(
                 // return btManager.readCharacteristic(characteristicUuid = characteristicUuid)
             }
 
-            is EnableNotifications    -> with(command) {
+            is EnableNotifications -> with(command) {
                 return Single.just(btManager.enabledNotifications(uuid = characteristicUuid))
                 // return btManager.enabledNotifications(uuid = characteristicUuid)
             }
 
-            is DisableNotifications   -> with(command) {
+            is DisableNotifications -> with(command) {
                 return Single.just(btManager.disabledNotifications(uuid = characteristicUuid))
                 // return btManager.disabledNotifications(uuid = characteristicUuid)
             }
 
-            is UnBondDevice           -> with(command) {
+            is UnBondDevice -> with(command) {
                 return Single.just(btManager.unBondDevice(macAddress = address))
                 // btManager.unBondDevice(macAddress = address)
             }
 
-            is Delay                  -> with(command) {
+            is Delay -> with(command) {
                 // delay(duration)
                 Thread.sleep(duration)
                 return Single.just(CommandResult.Success(true))

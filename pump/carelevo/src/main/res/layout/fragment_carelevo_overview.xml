@@ -105,7 +105,7 @@
                     app:keyText="@{@string/carelevo_basal_rate_key}"
                     app:layout_constraintTop_toBottomOf="@+id/container_pump_state"
                     app:topLineVisible="@{false}"
-                    app:valueText="@{String.valueOf(viewModel.basalRate)}" />
+                    app:valueText="@{String.format(@string/common_label_unit_value_dose_per_speed_with_space, viewModel.basalRate != null ? viewModel.basalRate : 0)}" />
 
                 <info.nightscout.androidaps.plugins.pump.carelevo.ui.widget.CarelevoKeyValueRowView
                     android:id="@+id/container_temp_basal_rate"
@@ -115,7 +115,7 @@
                     app:keyText="@{@string/carelevo_temp_basal_rate_key}"
                     app:layout_constraintTop_toBottomOf="@+id/container_basal_rate"
                     app:topLineVisible="@{false}"
-                    app:valueText="@{String.valueOf(viewModel.tempBasalRate)}" />
+                    app:valueText="@{String.format(@string/common_label_unit_value_dose_per_speed_with_space, viewModel.tempBasalRate != null ? viewModel.tempBasalRate : 0)}" />
 
                 <info.nightscout.androidaps.plugins.pump.carelevo.ui.widget.CarelevoKeyValueRowView
                     android:id="@+id/container_insulin_remain"
@@ -135,7 +135,7 @@
                     app:keyText="@{@string/carelevo_total_delivered_basal_key}"
                     app:layout_constraintTop_toBottomOf="@+id/container_insulin_remain"
                     app:topLineVisible="@{false}"
-                    app:valueText="@{String.valueOf(viewModel.totalDeliveredBasalAmount)}" />
+                    app:valueText="@{String.format(@string/common_label_unit_value_dose_with_space, viewModel.totalDeliveredBasalAmount != null ? viewModel.totalDeliveredBasalAmount : 0)}" />
 
                 <info.nightscout.androidaps.plugins.pump.carelevo.ui.widget.CarelevoKeyValueRowView
                     android:id="@+id/container_total_delivery_bolus_doze"
@@ -145,7 +145,7 @@
                     app:keyText="@{@string/carelevo_total_delivered_bolus_key}"
                     app:layout_constraintTop_toBottomOf="@+id/container_total_delivery_doze"
                     app:topLineVisible="@{false}"
-                    app:valueText="@{String.valueOf(viewModel.totalDeliveredBolusAmount)}" />
+                    app:valueText="@{String.format(@string/common_label_unit_value_dose_with_space, viewModel.totalDeliveredBolusAmount != null ? viewModel.totalDeliveredBolusAmount : 0)}" />
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 

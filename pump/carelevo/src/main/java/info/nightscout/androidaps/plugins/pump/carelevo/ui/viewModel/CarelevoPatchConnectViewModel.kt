@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.aaps.core.interfaces.rx.AapsSchedulers
+import app.aaps.core.interfaces.sharedPreferences.SP
 import info.nightscout.androidaps.plugins.pump.carelevo.ble.CarelevoBleSource
 import info.nightscout.androidaps.plugins.pump.carelevo.ble.core.CarelevoBleController
 import info.nightscout.androidaps.plugins.pump.carelevo.ble.core.Connect
@@ -25,6 +26,8 @@ import info.nightscout.androidaps.plugins.pump.carelevo.ble.data.shouldBeNotific
 import info.nightscout.androidaps.plugins.pump.carelevo.common.CarelevoPatch
 import info.nightscout.androidaps.plugins.pump.carelevo.common.MutableEventFlow
 import info.nightscout.androidaps.plugins.pump.carelevo.common.asEventFlow
+import info.nightscout.androidaps.plugins.pump.carelevo.common.keys.CarelevoBooleanPreferenceKey
+import info.nightscout.androidaps.plugins.pump.carelevo.common.keys.CarelevoIntPreferenceKey
 import info.nightscout.androidaps.plugins.pump.carelevo.common.model.Event
 import info.nightscout.androidaps.plugins.pump.carelevo.common.model.PatchState
 import info.nightscout.androidaps.plugins.pump.carelevo.common.model.State
@@ -50,6 +53,7 @@ class CarelevoPatchConnectViewModel @Inject constructor(
     private val aapsSchedulers: AapsSchedulers,
     private val carelevoPatch: CarelevoPatch,
     private val bleController: CarelevoBleController,
+    private val sp: SP,
     private val connectNewPatchUseCase: CarelevoConnectNewPatchUseCase,
     private val patchDiscardUseCase: CarelevoPatchDiscardUseCase,
     private val patchForceDiscardUseCase: CarelevoPatchForceDiscardUseCase
@@ -363,13 +367,17 @@ class CarelevoPatchConnectViewModel @Inject constructor(
             return
         }
 
+        val expiry = sp.getInt(CarelevoIntPreferenceKey.CARELEVO_PATCH_EXPIRATION_REMINDER_HOURS.key, 72)
+        val isBuzzOn = sp.getBoolean(CarelevoBooleanPreferenceKey.CARELEVO_BUZZER_REMINDER.key, false)
+
         compositeDisposable += connectNewPatchUseCase.execute(
             CarelevoConnectNewPatchRequestModel(
                 volume = inputInsulin,
-                expiry = 72,
+                expiry = expiry,
                 remains = userSettingInfo.lowInsulinNoticeAmount!!,
                 maxBasalSpeed = userSettingInfo.maxBasalSpeed!!,
-                maxVolume = userSettingInfo.maxBolusDose!!
+                maxVolume = userSettingInfo.maxBolusDose!!,
+                isBuzzOn = isBuzzOn
             )
         )
             .observeOn(aapsSchedulers.io)

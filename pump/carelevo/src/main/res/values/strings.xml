@@ -35,6 +35,26 @@
     <string name="carelevo_total_delivered_bolus_key">총 주입 볼러스</string>
     <string name="carelevo_running_remain_time">패치 남은 시간</string>
 
+    <string name="common_label_unit_value_duration_hour_and_minute">%d시간 %d분</string>
+    <string name="common_label_unit_value_date_format_year_month_date_day">yyyy.MM.dd (E)</string>
+    <string name="common_label_unit_value_duration_day_hour">%d일 %d시간</string>
+    <string name="common_label_unit_value_minute">%d분</string>
+    <string name="common_label_unit_value_duration_hour">%d시간</string>
+    <string name="common_label_unit_dose">U</string>
+    <string name="common_label_unit_value_dose">%sU</string>
+    <string name="common_label_unit_value_dose_with_space">%s U</string>
+    <string name="common_label_unit_dose_per_speed">U/hr</string>
+    <string name="common_label_unit_value_dose_per_speed">%sU/hr</string>
+    <string name="common_label_unit_value_dose_per_speed_with_space">%s U/hr</string>
+
+
+    <string name="common_unit_day_hour_value">%d일 %d시간</string>
+    <string name="common_unit_hour_value">%d시간</string>
+    <string name="common_unit_sec_value">%d초</string>
+    <string name="common_unit_step_format">%1$d/%2$d</string>
+    <string name="common_unit_value_day_hour_min">%1$d일 %2$02d:%3$02d</string>
+
+
     <string name="carelevo_state_none_value">No Connection</string>
     <string name="carelevo_state_disconnected_value">Disconnected</string>
     <string name="carelevo_state_connected_value">Connected</string>
@@ -69,12 +89,6 @@
     <string name="carelevo_preferences_category_alerts">경고</string>
     <string name="carelevo_preferences_category_confirmation_beeps">확인 신호음</string>
     <string name="carelevo_preferences_category_notifications">알림</string>
-
-    <string name="common_unit_day_hour_value">%d일 %d시간</string>
-    <string name="common_unit_hour_value">%d시간</string>
-    <string name="common_unit_sec_value">%d초</string>
-    <string name="common_unit_step_format">%1$d/%2$d</string>
-    <string name="common_unit_value_day_hour_min">%1$d일 %2$02d:%3$02d</string>
 
     <string name="carelevo_title_fill_insulin">패치에 인슐린 채우기</string>
     <string name="carelevo_notice_fill_insulin_amount">사용 기간 (최대 168시간)을 고려하여 패치에 인슐린을 채워주세요.\n(50 U - 300 U)인슐린 양 입력 버튼을 눌러 채운 인슐린 양을 입력해 주세요.</string>

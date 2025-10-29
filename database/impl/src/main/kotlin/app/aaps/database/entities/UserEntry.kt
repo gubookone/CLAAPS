@@ -193,6 +193,7 @@ data class UserEntry(
         BgFragment,
         Garmin,
         Database,           //for PersistenceLayer
+        Carelevo,
         Unknown,            //if necessary
         ;
 

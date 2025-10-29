@@ -178,6 +178,10 @@ data class AppAlarmClearResultModel(
     val result: Result
 ) : PatchResultModel
 
+data class AppBuzzResultModel(
+    val result: Result
+) : PatchResultModel
+
 internal fun createPatchResultModel(response: BtResponse): PatchResultModel? {
     return if (isPatchProtocol(response.command) && response is SetTimeResponse) {
         val value = response.result.codeToResultCommand()
@@ -302,6 +306,17 @@ internal fun createPatchResultModel(response: BtResponse): PatchResultModel? {
         AppAuthAckResultModel(response.result.codeToResultCommand())
     } else if (isPatchProtocol(response.command) && response is AppAlarmOffResponse) {
         AppAlarmClearResultModel(response.result.codeToResultCommand())
+    } else if (isPatchProtocol(response.command) && response is RetrieveOperationInfoResponse) {
+        RetrieveOperationInfoResultModel(
+            mode = response.mode,
+            pulseCnt = response.pulseCnt,
+            totalNo = response.totalNo,
+            count = response.count,
+            useMinutes = response.useMinutes,
+            remains = response.remains
+        )
+    } else if (isPatchProtocol(response.command) && response is CheckBuzzResponse) {
+        AppBuzzResultModel(response.result.codeToResultCommand())
     } else {
         null
     }
@@ -399,6 +414,15 @@ data class CancelExtendBolusResultModel(
 data class DelayExtendBolusReportResultModel(
     val delayedAmount: Double,
     val expectedTime: Int
+) : PatchResultModel
+
+data class RetrieveOperationInfoResultModel(
+    val mode: Int,
+    val pulseCnt: Int,
+    val totalNo: Int,
+    val count: Int,
+    val useMinutes: Int,
+    val remains: Double
 ) : PatchResultModel
 
 internal fun createBolusResultModel(response: BtResponse): PatchResultModel? {

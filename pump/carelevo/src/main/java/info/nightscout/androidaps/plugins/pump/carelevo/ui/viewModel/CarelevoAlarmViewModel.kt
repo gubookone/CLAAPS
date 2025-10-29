@@ -3,8 +3,12 @@ package info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.aaps.core.data.pump.defs.PumpType
 import app.aaps.core.interfaces.logging.AAPSLogger
+import app.aaps.core.interfaces.logging.LTag
+import app.aaps.core.interfaces.pump.PumpSync
 import app.aaps.core.interfaces.rx.AapsSchedulers
+import app.aaps.core.interfaces.utils.DateUtil
 import info.nightscout.androidaps.plugins.pump.carelevo.R
 import info.nightscout.androidaps.plugins.pump.carelevo.ble.core.CarelevoBleController
 import info.nightscout.androidaps.plugins.pump.carelevo.ble.core.Connect
@@ -13,6 +17,7 @@ import info.nightscout.androidaps.plugins.pump.carelevo.ble.data.CommandResult
 import info.nightscout.androidaps.plugins.pump.carelevo.common.CarelevoPatch
 import info.nightscout.androidaps.plugins.pump.carelevo.common.MutableEventFlow
 import info.nightscout.androidaps.plugins.pump.carelevo.common.asEventFlow
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.ResponseResult
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.alarm.CarelevoAlarmInfo
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.type.AlarmCause
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.type.AlarmType
@@ -20,31 +25,41 @@ import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.alarm.Ala
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.alarm.AlarmClearRequestUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.alarm.CarelevoAlarmInfoUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.alarm.model.AlarmClearUseCaseRequest
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.infusion.CarelevoPumpResumeUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.model.AlarmEvent
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.plusAssign
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlin.jvm.optionals.getOrNull
 
 class CarelevoAlarmViewModel @Inject constructor(
+    private val pumpSync: PumpSync,
+    private val dateUtil: DateUtil,
     private val aapsLogger: AAPSLogger,
     private val aapsSchedulers: AapsSchedulers,
     private val carelevoPatch: CarelevoPatch,
     private val bleController: CarelevoBleController,
     private val alarmUseCase: CarelevoAlarmInfoUseCase,
     private val alarmClearRequestUseCase: AlarmClearRequestUseCase,
-    private val alarmClearPatchDiscardUseCase: AlarmClearPatchDiscardUseCase
+    private val alarmClearPatchDiscardUseCase: AlarmClearPatchDiscardUseCase,
+    private val carelevoPumpResumeUseCase: CarelevoPumpResumeUseCase
 ) : ViewModel() {
 
     private val _alarmQueue = MutableStateFlow<List<CarelevoAlarmInfo>>(emptyList())
     val alarmQueue = _alarmQueue.asStateFlow()
 
-    private val _alarmQueueEmptyEvent = MutableSharedFlow<Unit>()
+    private val _alarmQueueEmptyEvent = MutableSharedFlow<Unit>(
+        replay = 0,
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
     val alarmQueueEmptyEvent = _alarmQueueEmptyEvent.asSharedFlow()
 
     private val _event = MutableEventFlow<AlarmEvent>()
@@ -65,12 +80,12 @@ class CarelevoAlarmViewModel @Inject constructor(
     fun triggerEvent(event: AlarmEvent) {
         when (event) {
             is AlarmEvent.ClearAlarm -> startAlarmClearProcess(event.info)
-            else                     -> Unit
+            else -> Unit
         }
     }
 
     fun loadUnacknowledgedAlarms() {
-        compositeDisposable += alarmUseCase.getAlarmsOnce(true)
+        compositeDisposable += alarmUseCase.getAlarmsOnce()
             .subscribeOn(aapsSchedulers.io)
             .observeOn(aapsSchedulers.main)
             .subscribe(
@@ -82,11 +97,11 @@ class CarelevoAlarmViewModel @Inject constructor(
                                 .thenBy { it.createdAt }
                         )
 
-                    Log.d("AlarmVM", "getAlarmsOnce alarms: ${alarms.size}")
-                    alarms.forEach {
-                        Log.d("AlarmVM", "getAlarmsOnce alarms: ${it.alarmType}, ${it.cause}")
+                    _alarmQueue.value = alarms.also {
+                        if (it.isEmpty()) {
+                            _alarmQueueEmptyEvent.tryEmit(Unit)
+                        }
                     }
-                    _alarmQueue.value = alarms
 
                 }, { e ->
                     Log.e("AlarmVM", "getAlarmsOnce error", e)
@@ -112,7 +127,7 @@ class CarelevoAlarmViewModel @Inject constructor(
             AlarmCause.ALARM_WARNING_PATCH_ERROR,
             AlarmCause.ALARM_WARNING_PUMP_CLOGGED,
             AlarmCause.ALARM_WARNING_NEEDLE_INSERTION_ERROR,
-            AlarmCause.ALARM_WARNING_LOW_BATTERY                   -> {
+            AlarmCause.ALARM_WARNING_LOW_BATTERY -> {
                 if (isPatchConnected()) {
                     startAlarmClearPatchDiscardProcess(info)
                 } else {
@@ -120,9 +135,10 @@ class CarelevoAlarmViewModel @Inject constructor(
                 }
             }
 
-            AlarmCause.ALARM_WARNING_NOT_USED_APP_AUTO_OFF         -> {
+            AlarmCause.ALARM_WARNING_NOT_USED_APP_AUTO_OFF -> {
                 if (isPatchConnected()) {
-                    //startAlarmUpdateInfusionResumeProcess()
+                    startAlarmClearRequestProcess(info)
+                    startInfusionResumeProcess(info) // 앱 미사용 주입 차단 시 Resume해주는 알람기능
                 } else {
                     triggerEvent(AlarmEvent.ShowToastMessage(R.string.alarm_feat_msg_check_patch_connect))
                 }
@@ -130,7 +146,8 @@ class CarelevoAlarmViewModel @Inject constructor(
 
             AlarmCause.ALARM_ALERT_RESUME_INSULIN_DELIVERY_TIMEOUT -> {
                 if (isPatchConnected()) {
-                    //startAlarmClearInfusionResumeProcess() 앱 미사용 주입 차단 시 Resume해주는 알람기능
+                    startAlarmClearRequestProcess(info)
+                    startInfusionResumeProcess(info) // 앱 미사용 주입 차단 시 Resume해주는 알람기능
                 } else {
                     triggerEvent(AlarmEvent.ShowToastMessage(R.string.alarm_feat_msg_check_patch_connect))
                 }
@@ -145,7 +162,7 @@ class CarelevoAlarmViewModel @Inject constructor(
             AlarmCause.ALARM_ALERT_INVALID_TEMPERATURE,
             AlarmCause.ALARM_NOTICE_LOW_INSULIN,
             AlarmCause.ALARM_NOTICE_PATCH_EXPIRED,
-            AlarmCause.ALARM_NOTICE_ATTACH_PATCH_CHECK             -> {
+            AlarmCause.ALARM_NOTICE_ATTACH_PATCH_CHECK -> {
                 if (isPatchConnected()) {
                     startAlarmClearRequestProcess(info)
                 } else {
@@ -153,11 +170,11 @@ class CarelevoAlarmViewModel @Inject constructor(
                 }
             }
 
-            AlarmCause.ALARM_ALERT_BLE_NOT_CONNECTED               -> {
+            AlarmCause.ALARM_ALERT_BLE_NOT_CONNECTED -> {
                 startAlarmAlertAbnormalClearProcess(info, alarmCause)
             }
 
-            AlarmCause.ALARM_ALERT_BLUETOOTH_OFF                   -> {
+            AlarmCause.ALARM_ALERT_BLUETOOTH_OFF -> {
                 startAlarmAlertAbnormalClearProcess(info, alarmCause)
             }
 
@@ -170,11 +187,11 @@ class CarelevoAlarmViewModel @Inject constructor(
             AlarmCause.ALARM_NOTICE_LGS_FINISHED_OFF_LGS,
             AlarmCause.ALARM_NOTICE_LGS_FINISHED_HIGH_BG,
             AlarmCause.ALARM_NOTICE_LGS_FINISHED_UNKNOWN,
-            AlarmCause.ALARM_NOTICE_LGS_NOT_WORKING                -> {
+            AlarmCause.ALARM_NOTICE_LGS_NOT_WORKING -> {
                 //startAlarmUpdateProcess()
             }
 
-            AlarmCause.ALARM_UNKNOWN                               -> {
+            AlarmCause.ALARM_UNKNOWN -> {
                 if (alarmType == AlarmType.WARNING) {
                     if (isPatchConnected()) {
                         startAlarmClearPatchDiscardProcess(info)
@@ -218,7 +235,7 @@ class CarelevoAlarmViewModel @Inject constructor(
                                 }
                             }
 
-                            else                                 -> acknowledgeAndRemoveAlarm(info.alarmId)
+                            else -> acknowledgeAndRemoveAlarm(info.alarmId)
                         }
 
                     }, { error ->
@@ -234,17 +251,41 @@ class CarelevoAlarmViewModel @Inject constructor(
                 .observeOn(aapsSchedulers.main)
                 .subscribe(
                     {
-                        Log.d("AlarmVM", "Success to acknowledge alarm ${info.alarmId}")
-                        val address = getConnectedAddress()
-                        address?.let {
-                            bleController.clearBond(it)
-                            bleController.execute(Disconnect(it))
-                        }
-                        carelevoPatch.flushPatchInformation()
-                        clearAllAlarms()
+                        startAlarmClearPatchForceQuitProcess()
                     }, { e ->
                         Log.e("AlarmVM", "Failed to acknowledge alarm ${info.alarmId}", e)
                     })
+        }
+    }
+
+    private fun startInfusionResumeProcess(info: CarelevoAlarmInfo) {
+        viewModelScope.launch {
+            compositeDisposable += carelevoPumpResumeUseCase.execute()
+                .timeout(30L, TimeUnit.SECONDS)
+                .observeOn(aapsSchedulers.io)
+                .subscribeOn(aapsSchedulers.io)
+                .doOnError {
+                    aapsLogger.debug(LTag.PUMP, "[startInfusionResumeProcess::startPumpResume] doOnError called : $it")
+                }
+                .subscribe { response ->
+                    when (response) {
+                        is ResponseResult.Success -> {
+                            aapsLogger.debug(LTag.PUMP, "[startInfusionResumeProcess::startPumpResume] response success")
+                            pumpSync.syncStopTemporaryBasalWithPumpId(
+                                timestamp = dateUtil.now(),
+                                endPumpId = dateUtil.now(),
+                                pumpType = PumpType.CAREMEDI_CARELEVO,
+                                pumpSerial = carelevoPatch.patchInfo.value?.getOrNull()?.manufactureNumber ?: ""
+                            )
+                        }
+
+                        is ResponseResult.Failure -> {}
+
+                        is ResponseResult.Error -> {
+                            aapsLogger.debug(LTag.PUMP, "[startInfusionResumeProcess::startPumpResume] response failed: ${response.e.message}")
+                        }
+                    }
+                }
         }
     }
 
@@ -252,10 +293,19 @@ class CarelevoAlarmViewModel @Inject constructor(
         val address = getConnectedAddress()
         address?.let {
             bleController.clearBond(it)
-            bleController.execute(Disconnect(it))
+            compositeDisposable += bleController.execute(Disconnect(address))
+                .subscribeOn(aapsSchedulers.io)
+                .observeOn(aapsSchedulers.main)
+                .subscribe(
+                    { result ->
+                        Log.d("AlarmVM", "Disconnect success: $result")
+                        bleController.unBondDevice()
+                        carelevoPatch.flushPatchInformation()
+                        clearAllAlarms()
+                    }, { e ->
+                        Log.e("AlarmVM", "Disconnect failed", e)
+                    })
         }
-        carelevoPatch.flushPatchInformation()
-        clearAllAlarms()
     }
 
     fun acknowledgeAndRemoveAlarm(alarmId: String) {
@@ -280,7 +330,7 @@ class CarelevoAlarmViewModel @Inject constructor(
                             acknowledgeAndRemoveAlarm(alarmId)
                         }
 
-                        else                     -> {
+                        else -> {
                             Log.d("connect_test", "[CarelevoCommunicationCheckViewModel::startReconnect] connect result failed")
                         }
                     }
@@ -295,9 +345,8 @@ class CarelevoAlarmViewModel @Inject constructor(
             .subscribe(
                 {
                     _alarmQueue.value = emptyList()
-                    viewModelScope.launch {
-                        _alarmQueueEmptyEvent.emit(Unit)
-                    }
+                    val ok = _alarmQueueEmptyEvent.tryEmit(Unit)
+                    Log.d("AlarmVM", "emit empty event: $ok")
                 },
                 { e ->
                     Log.e("AlarmVM", "clearAllAlarms error", e)

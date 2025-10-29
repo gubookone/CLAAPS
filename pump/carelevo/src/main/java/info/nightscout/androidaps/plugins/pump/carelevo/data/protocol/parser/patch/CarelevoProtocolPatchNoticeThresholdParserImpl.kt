@@ -4,7 +4,7 @@ import info.nightscout.androidaps.plugins.pump.carelevo.data.model.ble.ProtocolN
 import info.nightscout.androidaps.plugins.pump.carelevo.data.protocol.parser.CarelevoProtocolParser
 
 class CarelevoProtocolPatchNoticeThresholdParserImpl(
-    override val command : Int
+    override val command: Int
 ) : CarelevoProtocolParser<ByteArray, ProtocolNoticeThresholdRspModel> {
 
     override fun parse(data: ByteArray): ProtocolNoticeThresholdRspModel {
@@ -16,8 +16,8 @@ class CarelevoProtocolPatchNoticeThresholdParserImpl(
         return ProtocolNoticeThresholdRspModel(
             timestamp,
             cmd,
-            type,
-            result
+            type = type,
+            result = result
         )
     }
 }

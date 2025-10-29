@@ -1,5 +1,6 @@
 package info.nightscout.androidaps.plugins.pump.carelevo.data.dao
 
+import android.util.Log
 import app.aaps.core.interfaces.sharedPreferences.SP
 import info.nightscout.androidaps.plugins.pump.carelevo.config.PrefEnvConfig
 import info.nightscout.androidaps.plugins.pump.carelevo.data.common.CarelevoGsonHelper
@@ -43,7 +44,7 @@ class CarelevoAlarmInfoDaoImpl @Inject constructor(
     override fun getAlarmsOnce(includeUnacknowledged: Boolean): Single<Optional<List<CarelevoAlarmInfoEntity>>> {
         return Single.fromCallable {
             val list = ensureLoaded().let { current ->
-                if (includeUnacknowledged) current else current.filter { it.acknowledged }
+                current.filter { it.acknowledged == includeUnacknowledged }
             }
             Optional.of(list)
         }
@@ -92,9 +93,14 @@ class CarelevoAlarmInfoDaoImpl @Inject constructor(
     }
 
     override fun markAcknowledged(alarmId: String, acknowledged: Boolean, updatedAt: String): Completable {
+        Log.d("CarelevoAlarmInfoDaoImpl", "markAcknowledged: ${alarmId}, $acknowledged, $updatedAt")
         return Completable.fromAction {
             val current = ensureLoaded()
-            val next = current.filterNot { it.alarmId == alarmId }
+            val next = current.filterNot { it.alarmId == alarmId }      // 제거
+            next.forEach {
+                Log.d("CarelevoAlarmInfoDaoImpl", "markAcknowledged: ${it}")
+            }
+
             saveList(next)
             _alarms.onNext(Optional.of(next))
         }
@@ -117,6 +123,10 @@ class CarelevoAlarmInfoDaoImpl @Inject constructor(
 
     private fun saveList(list: List<CarelevoAlarmInfoEntity>) {
         val json = CarelevoGsonHelper.sharedGson().toJson(list)
+        list.forEach {
+            Log.d("CarelevoAlarmInfoDaoImpl", "saveList: ${it}")
+        }
+
         prefManager.putString(PrefEnvConfig.CARELEVO_ALARM_INFO_LIST, json)
     }
 }

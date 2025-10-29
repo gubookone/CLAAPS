@@ -21,6 +21,7 @@ import info.nightscout.androidaps.plugins.pump.carelevo.common.model.Event
 import info.nightscout.androidaps.plugins.pump.carelevo.common.model.PatchState
 import info.nightscout.androidaps.plugins.pump.carelevo.common.model.State
 import info.nightscout.androidaps.plugins.pump.carelevo.common.model.UiState
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.CarelevoPatchObserver
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.ResponseResult
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.patch.CarelevoPatchInfoDomainModel
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.alarm.CarelevoAlarmInfoUseCase
@@ -33,6 +34,7 @@ import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.Car
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.model.CarelevoOverviewEvent
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.model.CarelevoOverviewUiModel
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.type.CarelevoScreenType
+import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.plusAssign
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,6 +54,7 @@ class CarelevoOverviewViewModel @Inject constructor(
     private val commandQueue: CommandQueue,
     private val aapsLogger: AAPSLogger,
     private val carelevoPatch: CarelevoPatch,
+    private val carelevoPatchObserver: CarelevoPatchObserver,
     private val bleController: CarelevoBleController,
     private val aapsSchedulers: AapsSchedulers,
     private val patchDiscardUseCase: CarelevoPatchDiscardUseCase,
@@ -119,7 +122,7 @@ class CarelevoOverviewViewModel @Inject constructor(
     private val compositeDisposable = CompositeDisposable()
 
     init {
-        loadUnacknowledgedAlarms()
+
     }
 
     fun setIsCreated(isCreated: Boolean) {
@@ -129,17 +132,22 @@ class CarelevoOverviewViewModel @Inject constructor(
     fun observePatchInfo() {
         compositeDisposable += carelevoPatch.patchInfo
             .observeOn(aapsSchedulers.io)
-            .filter { it != null }
-            .map { info ->
-                val patchInfo = info.getOrNull() ?: error("PatchInfo is null")
-                updateCheckScreen(patchInfo)
-                buildUi(patchInfo)
+            .flatMap { info ->
+                val patchInfo = info?.getOrNull()
+                if (patchInfo == null) {
+                    aapsLogger.debug(LTag.PUMP, "[observePatchInfo] skip null/failure")
+                    Observable.empty<CarelevoOverviewUiModel>()
+                } else {
+                    aapsLogger.debug(LTag.PUMP, "[observePatchInfo] state: $patchInfo")
+                    updateCheckScreen(patchInfo)
+                    Observable.just(buildUi(patchInfo)) // ← flatMap이니 OK
+                }
             }
             .observeOn(aapsSchedulers.main)
             .doOnNext { ui -> updateState(ui) }
             .subscribe(
                 { ui ->
-                    aapsLogger.debug(LTag.PUMP, "[Overview] $ui")
+                    aapsLogger.debug(LTag.PUMP, "[CarelevoOverviewViewModel::observePatchInfo] state : $ui")
 
                 },
                 { e ->
@@ -210,6 +218,8 @@ class CarelevoOverviewViewModel @Inject constructor(
                         _bleState.value = patchState
                         if (patchState == PatchState.NotConnectedNotBooting) {
                             onDisconnectValue()
+                        } else {
+                            _basalRate.value = carelevoPatch.profile.value?.getOrNull()?.getBasal() ?: 0.0
                         }
                     }
                 },
@@ -221,8 +231,15 @@ class CarelevoOverviewViewModel @Inject constructor(
 
     fun observeInfusionInfo() {
         compositeDisposable += carelevoPatch.infusionInfo
+            .subscribeOn(aapsSchedulers.io)
             .observeOn(aapsSchedulers.main)
             .subscribe {
+                val infusionInfo = it.getOrNull() ?: return@subscribe
+                aapsLogger.debug(LTag.PUMP, "[CarelevoOverviewViewModel::observeInfusionInfo] basalInfusionInfo : ${infusionInfo.basalInfusionInfo}")
+                aapsLogger.debug(LTag.PUMP, "[CarelevoOverviewViewModel::observeInfusionInfo] tempBasalInfusionInfo : ${infusionInfo.tempBasalInfusionInfo}")
+                aapsLogger.debug(LTag.PUMP, "[CarelevoOverviewViewModel::observeInfusionInfo] immeBolusInfusionInfo : ${infusionInfo.immeBolusInfusionInfo}")
+                aapsLogger.debug(LTag.PUMP, "[CarelevoOverviewViewModel::observeInfusionInfo] extendBolusInfusionInfo : ${infusionInfo.extendBolusInfusionInfo}")
+
                 _tempBasalRate.value = it?.getOrNull()?.tempBasalInfusionInfo?.let { info ->
                     "${info.speed ?: 0.0}"
                 } ?: "0.0"
@@ -246,11 +263,11 @@ class CarelevoOverviewViewModel @Inject constructor(
                     val alarms = optionalList.orElse(emptyList())
                         .filter { !it.isAcknowledged }
                         .sortedBy { it.createdAt }
-                    Log.e("AlarmObserver", "getAlarmsOnce hasAlarm, $alarms")
+                    aapsLogger.debug(LTag.PUMP, "[CarelevoOverviewViewModel::loadUnacknowledgedAlarms] alarms : $alarms")
                     _hasUnacknowledgedAlarms.value = alarms.isNotEmpty()
 
                 }, { e ->
-                    Log.e("AlarmObserver", "getAlarmsOnce error", e)
+                    aapsLogger.debug(LTag.PUMP, "[CarelevoOverviewViewModel::loadUnacknowledgedAlarms] error : $e")
                 })
     }
 
@@ -535,6 +552,7 @@ class CarelevoOverviewViewModel @Inject constructor(
     }
 
     fun refreshPatchInfusionInfo() {
+        Log.d("plugin_test", "[CarelevoOverviewViewModel::refreshPatchInfusionInfo] : ${carelevoPatch.isBluetoothEnabled()}, ${carelevoPatch.isCarelevoConnected()}")
         if (!carelevoPatch.isBluetoothEnabled()) {
             return
         }
@@ -549,7 +567,7 @@ class CarelevoOverviewViewModel @Inject constructor(
             .subscribe { response ->
                 when (response) {
                     is ResponseResult.Success -> {
-                        Log.d("plugin_test", "[CarelevoOverviewViewModel::InfusionInfo] response success")
+                        Log.d("plugin_test", "[CarelevoOverviewViewModel::refreshPatchInfusionInfo] response success")
                     }
 
                     is ResponseResult.Error -> {

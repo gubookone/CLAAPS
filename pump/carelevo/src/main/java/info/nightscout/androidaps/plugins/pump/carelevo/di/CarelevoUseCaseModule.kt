@@ -33,9 +33,12 @@ import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.Car
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.CarelevoPatchInfoMonitorUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.CarelevoPatchRptInfusionInfoProcessUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.CarelevoPatchSafetyCheckUseCase
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.CarelevoPatchTimeZoneUpdateUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.CarelevoRequestPatchInfusionInfoUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.userSetting.CarelevoCreateUserSettingInfoUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.userSetting.CarelevoDeleteUserSettingInfoUseCase
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.userSetting.CarelevoPatchBuzzModifyUseCase
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.userSetting.CarelevoPatchExpiredThresholdModifyUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.userSetting.CarelevoUpdateLowInsulinNoticeAmountUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.userSetting.CarelevoUpdateMaxBolusDoseUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.userSetting.CarelevoUserSettingInfoMonitorUseCase
@@ -266,6 +269,14 @@ class CarelevoUseCaseModule {
         )
     }
 
+    @Provides
+    fun provideCarelevoPatchExpiredThresholdModifyUseCase(
+        carelevoPatchObserver: CarelevoPatchObserver,
+        carelevoPatchRepository: CarelevoPatchRepository
+    ): CarelevoPatchExpiredThresholdModifyUseCase {
+        return CarelevoPatchExpiredThresholdModifyUseCase(carelevoPatchObserver, carelevoPatchRepository)
+    }
+
     //==========================================================================================
     // about patch
     @Provides
@@ -407,8 +418,27 @@ class CarelevoUseCaseModule {
     fun provideAlarmClearPatchDiscardUseCase(
         patchObserver: CarelevoPatchObserver,
         patchRepository: CarelevoPatchRepository,
-        alarmRepository: CarelevoAlarmInfoRepository
+        alarmRepository: CarelevoAlarmInfoRepository,
+        patchInfoRepository: CarelevoPatchInfoRepository,
+        userSettingInfoRepository: CarelevoUserSettingInfoRepository,
+        infusionInfoRepository: CarelevoInfusionInfoRepository
     ): AlarmClearPatchDiscardUseCase {
-        return AlarmClearPatchDiscardUseCase(patchObserver, patchRepository, alarmRepository)
+        return AlarmClearPatchDiscardUseCase(patchObserver, patchRepository, alarmRepository, patchInfoRepository, userSettingInfoRepository, infusionInfoRepository)
+    }
+
+    @Provides
+    fun provideCarelevoPatchTimeZoneUpdateUseCase(
+        patchRepository: CarelevoPatchRepository,
+        patchObserver: CarelevoPatchObserver
+    ): CarelevoPatchTimeZoneUpdateUseCase {
+        return CarelevoPatchTimeZoneUpdateUseCase(patchRepository, patchObserver)
+    }
+
+    @Provides
+    fun provideCarelevoPatchBuzzModifyUseCase(
+        patchRepository: CarelevoPatchRepository,
+        patchObserver: CarelevoPatchObserver
+    ): CarelevoPatchBuzzModifyUseCase {
+        return CarelevoPatchBuzzModifyUseCase(patchObserver, patchRepository)
     }
 }

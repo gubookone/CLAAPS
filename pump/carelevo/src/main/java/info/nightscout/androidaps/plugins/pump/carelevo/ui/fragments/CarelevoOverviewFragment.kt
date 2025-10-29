@@ -34,7 +34,7 @@ class CarelevoOverviewFragment : CarelevoBaseFragment<FragmentCarelevoOverviewBi
     private val launchConnectActivity =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == Activity.RESULT_OK) {
-                viewModel.refreshPatchInfusionInfo()
+
             }
         }
 
@@ -53,15 +53,21 @@ class CarelevoOverviewFragment : CarelevoBaseFragment<FragmentCarelevoOverviewBi
         setupObserver()
     }
 
+    override fun onResume() {
+        super.onResume()
+        viewModel.loadUnacknowledgedAlarms()
+        viewModel.refreshPatchInfusionInfo()
+    }
+
     override fun setupView() {
         loadingProgress = CarelevoBaseCircleProgress(requireContext())
         with(binding) {
             btnConnect.setOnClickListener {
                 when (this@CarelevoOverviewFragment.viewModel.bleState.value) {
-                    PatchState.NotConnectedBooted     -> startCarelevoActivity(CarelevoScreenType.COMMUNICATION_CHECK)
+                    PatchState.NotConnectedBooted -> startCarelevoActivity(CarelevoScreenType.COMMUNICATION_CHECK)
                     PatchState.NotConnectedNotBooting -> startCarelevoActivity(CarelevoScreenType.CONNECTION_FLOW_START)
-                    PatchState.ConnectedBooted        -> ToastUtils.infoToast(requireContext(), ContextCompat.getString(requireContext(), R.string.carelevo_toast_patch_connecting))
-                    else                              -> Unit
+                    PatchState.ConnectedBooted -> ToastUtils.infoToast(requireContext(), ContextCompat.getString(requireContext(), R.string.carelevo_toast_patch_connecting))
+                    else -> Unit
                 }
             }
 
@@ -123,15 +129,15 @@ class CarelevoOverviewFragment : CarelevoBaseFragment<FragmentCarelevoOverviewBi
 
     private fun handleState(state: State) {
         when (state) {
-            is UiState.Idle    -> hideFullScreenProgress()
+            is UiState.Idle -> hideFullScreenProgress()
             is UiState.Loading -> showFullScreenProgress()
-            else               -> hideFullScreenProgress()
+            else -> hideFullScreenProgress()
         }
     }
 
     private fun handleEvent(event: Event) {
         when (event) {
-            is CarelevoOverviewEvent.ShowMessageBluetoothNotEnabled    -> {
+            is CarelevoOverviewEvent.ShowMessageBluetoothNotEnabled -> {
                 ToastUtils.infoToast(requireContext(), getString(R.string.carelevo_toast_msg_bluetooth_not_enabled))
             }
 
@@ -139,39 +145,39 @@ class CarelevoOverviewFragment : CarelevoBaseFragment<FragmentCarelevoOverviewBi
                 ToastUtils.infoToast(requireContext(), getString(R.string.carelevo_toast_msg_patch_not_connected))
             }
 
-            is CarelevoOverviewEvent.DiscardComplete                   -> {
+            is CarelevoOverviewEvent.DiscardComplete -> {
                 ToastUtils.infoToast(requireContext(), getString(R.string.carelevo_toast_msg_discard_complete))
             }
 
-            is CarelevoOverviewEvent.DiscardFailed                     -> {
+            is CarelevoOverviewEvent.DiscardFailed -> {
                 ToastUtils.infoToast(requireContext(), getString(R.string.carelevo_toast_msg_discard_failed))
             }
 
-            is CarelevoOverviewEvent.ResumePumpComplete                -> {
+            is CarelevoOverviewEvent.ResumePumpComplete -> {
                 ToastUtils.infoToast(requireContext(), getString(R.string.carelevo_toast_mag_set_basal_resume_success))
             }
 
-            is CarelevoOverviewEvent.ResumePumpFailed                  -> {
+            is CarelevoOverviewEvent.ResumePumpFailed -> {
                 ToastUtils.infoToast(requireContext(), getString(R.string.carelevo_toast_mag_set_basal_resume_fail))
             }
 
-            is CarelevoOverviewEvent.StopPumpComplete                  -> {
+            is CarelevoOverviewEvent.StopPumpComplete -> {
                 ToastUtils.infoToast(requireContext(), getString(R.string.carelevo_toast_mag_set_basal_suspend_success))
             }
 
-            is CarelevoOverviewEvent.StopPumpFailed                    -> {
+            is CarelevoOverviewEvent.StopPumpFailed -> {
                 ToastUtils.infoToast(requireContext(), getString(R.string.carelevo_toast_mag_set_basal_suspend_fail))
             }
 
-            is CarelevoOverviewEvent.ShowPumpResumeDialog              -> {
+            is CarelevoOverviewEvent.ShowPumpResumeDialog -> {
                 showPumpResumeConfirmDialog()
             }
 
-            is CarelevoOverviewEvent.ShowPumpStopDurationSelectDialog  -> {
+            is CarelevoOverviewEvent.ShowPumpStopDurationSelectDialog -> {
                 showPumpStopDurationSelectDialog()
             }
 
-            else                                                       -> Unit
+            else -> Unit
         }
     }
 

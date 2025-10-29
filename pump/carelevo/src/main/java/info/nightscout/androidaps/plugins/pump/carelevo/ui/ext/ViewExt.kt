@@ -13,6 +13,7 @@ internal fun setInfusionStateText(infusionState: Int, context: Context): String 
         1 -> context.getString(R.string.carelevo_overview_infusion_state_basal)
         2 -> context.getString(R.string.carelevo_overview_infusion_state_temp_basal)
         3 -> context.getString(R.string.carelevo_overview_infusion_state_imme_bolus)
+        4 -> context.getString(R.string.carelevo_overview_infusion_state_imme_bolus)
         5 -> context.getString(R.string.carelevo_overview_infusion_state_extend_bolus)
         else -> ""
     }

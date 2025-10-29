@@ -90,9 +90,6 @@ class CarelevoBleMangerImpl @Inject constructor(
     }
 
     override fun isNotificationEnabled(): Boolean {
-        if (btManager == null) {
-            return false
-        }
         if (btAdapter == null) {
             return false
         }
@@ -454,7 +451,7 @@ class CarelevoBleMangerImpl @Inject constructor(
         return bluetoothGatt?.let { gatt ->
             gatt.findCharacteristic(params.rxUUID)?.let { characteristicTarget ->
                 val writeType = when {
-                    characteristicTarget.isWritable()                -> {
+                    characteristicTarget.isWritable() -> {
                         BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
                     }
 
@@ -462,7 +459,7 @@ class CarelevoBleMangerImpl @Inject constructor(
                         BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
                     }
 
-                    else                                             -> {
+                    else -> {
                         return CommandResult.Failure(FailureState.FAILURE_COMMAND_NOT_EXECUTABLE, "Characteristic target is not writeable")
                     }
                 }
@@ -673,7 +670,7 @@ class CarelevoBleMangerImpl @Inject constructor(
             val bondState = gatt?.device?.bondState ?: -1
 
             when (newState) {
-                BluetoothProfile.STATE_CONNECTED     -> {
+                BluetoothProfile.STATE_CONNECTED -> {
                     if (status == BluetoothGatt.GATT_SUCCESS) {
                         gatt?.device?.createBond()
                         currentState = CarelevoBleSource.bluetoothState.value?.copy(
@@ -698,7 +695,7 @@ class CarelevoBleMangerImpl @Inject constructor(
                     }
                 }
 
-                BluetoothProfile.STATE_DISCONNECTED  -> {
+                BluetoothProfile.STATE_DISCONNECTED -> {
                     gatt?.close()
                     bluetoothGatt = null
 
