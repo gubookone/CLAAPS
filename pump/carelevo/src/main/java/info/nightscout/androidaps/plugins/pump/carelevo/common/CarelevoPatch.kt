@@ -1,6 +1,8 @@
 package info.nightscout.androidaps.plugins.pump.carelevo.common
 
 import android.util.Log
+import app.aaps.core.interfaces.logging.AAPSLogger
+import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.profile.Profile
 import app.aaps.core.interfaces.rx.AapsSchedulers
 import app.aaps.core.interfaces.rx.bus.RxBus
@@ -27,6 +29,7 @@ import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.bt.Infusion
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.bt.NoticeReportResultModel
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.bt.PatchResultModel
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.bt.PumpStateResult.Companion.commandToCode
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.bt.RetrieveOperationInfoResultModel
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.bt.WarningReportResultModel
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.infusion.CarelevoInfusionInfoDomainModel
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.patch.CarelevoPatchInfoDomainModel
@@ -36,6 +39,8 @@ import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.alarm.Car
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.infusion.CarelevoInfusionInfoMonitorUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.CarelevoPatchInfoMonitorUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.CarelevoPatchRptInfusionInfoProcessUseCase
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.CarelevoRequestPatchInfusionInfoUseCase
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.model.CarelevoPatchRptInfusionInfoDefaultRequestModel
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.model.CarelevoPatchRptInfusionInfoRequestModel
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.userSetting.CarelevoCreateUserSettingInfoUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.userSetting.CarelevoUpdateLowInsulinNoticeAmountUseCase
@@ -61,17 +66,16 @@ class CarelevoPatch @Inject constructor(
     private val rxBus: RxBus,
     private val sp: SP,
     private val preferences: Preferences,
+    private val aapsLogger: AAPSLogger,
     private val infusionInfoMonitorUseCase: CarelevoInfusionInfoMonitorUseCase,
     private val patchInfoMonitorUseCase: CarelevoPatchInfoMonitorUseCase,
     private val userSettingInfoMonitorUseCase: CarelevoUserSettingInfoMonitorUseCase,
-
     private val patchRptInfusionInfoProcessUseCase: CarelevoPatchRptInfusionInfoProcessUseCase,
-
     private val updateMaxBolusDoseUseCase: CarelevoUpdateMaxBolusDoseUseCase,
     private val updateLowInsulinNoticeAmountUseCase: CarelevoUpdateLowInsulinNoticeAmountUseCase,
-
     private val createUserSettingInfoUseCase: CarelevoCreateUserSettingInfoUseCase,
-    private val carelevoAlarmInfoUseCase: CarelevoAlarmInfoUseCase
+    private val carelevoAlarmInfoUseCase: CarelevoAlarmInfoUseCase,
+    private val requestPatchInfusionInfoUseCase: CarelevoRequestPatchInfusionInfoUseCase
 ) {
 
     private val bleDisposable = CompositeDisposable()
@@ -83,9 +87,6 @@ class CarelevoPatch @Inject constructor(
 
     private val _btState: BehaviorSubject<Optional<BleState>> = BehaviorSubject.create()
     val btState get() = _btState
-
-    private var _lastBtState: BleState? = null
-    val lastBtState get() = _lastBtState
 
     private val _patchState: BehaviorSubject<Optional<PatchState>> = BehaviorSubject.create()
     val patchState get() = _patchState
@@ -108,6 +109,8 @@ class CarelevoPatch @Inject constructor(
     private val _profile: BehaviorSubject<Optional<Profile>> = BehaviorSubject.create()
     val profile get() = _profile
 
+    private var lastBtState: BleState? = null
+
     fun initPatch() {
         if (!isWorking) {
             observeBleState()
@@ -126,10 +129,7 @@ class CarelevoPatch @Inject constructor(
         val isConnected = isConnected.value ?: false
         val validAddress = patchInfo.value?.getOrNull()?.address
 
-        Log.d("patch_test", "[CarelevoPatchRx::isCarelevoConnected] address : $address")
-        Log.d("patch_test", "[CarelevoPatchRx::isCarelevoConnected] isConnected : $isConnected")
-        Log.d("patch_test", "[CarelevoPatchRx::isCarelevoConnected] validAddress : $validAddress")
-
+        aapsLogger.debug(LTag.PUMP, "[CarelevoPatchRx::isCarelevoConnected] address : $address, isConnected : $isConnected, validAddress : $validAddress")
         return address != null && validAddress != null && isConnected && address.lowercase() == validAddress.lowercase()
     }
 
@@ -145,11 +145,10 @@ class CarelevoPatch @Inject constructor(
         Log.d("patch_state", "[CarelevoPatchRx::getPatchState] isPeripheralConnected : $isPeripheralConnected")
 
         val result = when {
-            isPeripheralConnected && isPatchValid   -> PatchState.ConnectedBooted
-            isPeripheralConnected && !isPatchValid  -> PatchState.NotConnectedNotBooting
-            !isPeripheralConnected && isPatchValid  -> PatchState.NotConnectedBooted
-            !isPeripheralConnected && !isPatchValid -> PatchState.NotConnectedNotBooting
-            else                                    -> PatchState.NotConnectedNotBooting
+            isPeripheralConnected && isPatchValid -> PatchState.ConnectedBooted
+            isPeripheralConnected && !isPatchValid -> PatchState.NotConnectedNotBooting
+            !isPeripheralConnected && isPatchValid -> PatchState.NotConnectedBooted
+            else -> PatchState.NotConnectedNotBooting
         }
 
         Log.d("patch_state", "[CarelevoPatchRx::getPatchState] result : $result")
@@ -162,9 +161,9 @@ class CarelevoPatch @Inject constructor(
         bleDisposable += BehaviorSubject.combineLatest(
             btState,
             patchInfo
-        ) { _bt, _ ->
-            val btAvailable = _bt.getOrNull()?.isAvailable()
-            val btPeripheralConnected = _bt.getOrNull()?.isPeripheralConnected()
+        ) { btState, _ ->
+            val btAvailable = btState.getOrNull()?.isAvailable()
+            val btPeripheralConnected = btState.getOrNull()?.isPeripheralConnected()
 
             Log.d("patch_state", "[CarelevoPatchRx::changeState] btAvailable : $btAvailable")
             Log.d("patch_state", "[CarelevoPatchRx::changeState] btPeripheralConnected : $btPeripheralConnected")
@@ -187,12 +186,12 @@ class CarelevoPatch @Inject constructor(
                     Log.d("patch_test", "[CarelevoPatch::observeChangeState] patch state is no connection")
                 }
 
-                is PatchState.ConnectedBooted        -> {
+                is PatchState.ConnectedBooted -> {
                     Log.d("patch_test", "[CarelevoPatch::observeChangeState] patch state is ConnectedBooted")
                     rxBus.send(EventPumpStatusChanged(EventPumpStatusChanged.Status.CONNECTED))
                 }
 
-                else                                 -> {
+                else -> {
                     Log.d("patch_test", "[CarelevoPatch::observeChangeState] patch state is disconnected")
                     rxBus.send(EventPumpStatusChanged(EventPumpStatusChanged.Status.DISCONNECTED))
                 }
@@ -227,27 +226,23 @@ class CarelevoPatch @Inject constructor(
 
     fun checkIsSameProfile(newProfile: Profile?): Boolean {
         val setProfile = profile.value?.getOrNull() ?: return false
-        return newProfile?.let {
-            if (it.getBasalValues().size != setProfile.getBasalValues().size) {
-                Log.d("plugin_test", "[CarelevoPatch::checkIsSameProfile] it's different with new profile basal segment size and set profile basal segment size")
-                return false
-            }
+        val a = newProfile ?: return false
+        val aVals = a.getBasalValues()
+        val bVals = setProfile.getBasalValues()
 
-            for (i in it.getBasalValues().indices) {
-                if (TimeUnit.SECONDS.toMinutes(it.getBasalValues()[i].timeAsSeconds.toLong()) != TimeUnit.SECONDS.toMinutes(setProfile.getBasalValues()[i].timeAsSeconds.toLong())) {
-                    Log.d("plugin_test", "[CarelevoPatch::checkIsSameProfile] it's different with new profile segment duration and set profile duration")
-                    return false
-                }
-                if (!nearlyEqual(it.getBasalValues()[i].value.toFloat(), setProfile.getBasalValues()[i].value.toFloat(), 0.0000001f)) {
-                    Log.d("plugin_test", "[CarelevoPatch::checkIsSameProfile] it's different with new profile segment value and set profile segment value")
-                    return false
-                }
-            }
-            return true
-        } ?: return false
+        if (aVals.size != bVals.size) return false
+
+        for (i in aVals.indices) {
+            if (TimeUnit.SECONDS.toMinutes(aVals[i].timeAsSeconds.toLong()) !=
+                TimeUnit.SECONDS.toMinutes(bVals[i].timeAsSeconds.toLong())
+            ) return false
+
+            if (!nearlyEqual(aVals[i].value.toFloat(), bVals[i].value.toFloat())) return false
+        }
+        return true
     }
 
-    private fun nearlyEqual(a: Float, b: Float, epsilon: Float): Boolean {
+    private fun nearlyEqual(a: Float, b: Float, epsilon: Float = 1e-3f): Boolean {
         val absA = abs(a)
         val absB = abs(b)
         val diff = abs(a - b)
@@ -267,17 +262,15 @@ class CarelevoPatch @Inject constructor(
             .subscribe { state ->
                 Log.d("ble_observer", "[CarelevoPatchRx::observeBleState] state : $state")
                 if (state.isEnabled == DeviceModuleState.DEVICE_STATE_OFF) {
-                    if (_lastBtState != null && _lastBtState?.isEnabled != DeviceModuleState.DEVICE_STATE_OFF) {
+                    if (lastBtState != null && lastBtState?.isEnabled != DeviceModuleState.DEVICE_STATE_OFF) {
                         bleController.checkGatt()
                         bleController.clearOnlyGatt()
                         handleAlarm("alert", value = null, cause = AlarmCause.ALARM_ALERT_BLUETOOTH_OFF)
                     }
-
                 }
 
-                _lastBtState = state
+                lastBtState = state
                 _btState.onNext(Optional.ofNullable(state))
-
             }
     }
 
@@ -301,49 +294,79 @@ class CarelevoPatch @Inject constructor(
         when (model) {
             is BasalInfusionResumeResultModel -> {}
 
-            is FinishPulseReportResultModel   -> {}
+            is FinishPulseReportResultModel -> {}
 
-            is WarningReportResultModel       -> handleAlarm("warning", model.value, model.cause)
-            is AlertReportResultModel         -> handleAlarm("alert", model.value, model.cause)
-            is NoticeReportResultModel        -> handleAlarm("notice", model.value, model.cause)
-
-            is InfusionInfoReportResultModel  -> {
-                bleDisposable += patchRptInfusionInfoProcessUseCase.execute(
-                    CarelevoPatchRptInfusionInfoRequestModel(
-                        runningMinute = model.runningMinutes,
-                        remains = model.remains,
-                        infusedTotalBasalAmount = model.infusedTotalBasalAmount,
-                        infusedTotalBolusAmount = model.infusedTotalBolusAmount,
-                        pumpState = model.pumpState.commandToCode(),
-                        mode = model.mode.commandToCode(),
-                        currentInfusedProgramVolume = model.currentInfusedProgramVolume,
-                        realInfusedTime = model.realInfusedTime
-                    )
-                )
-                    .timeout(3000L, TimeUnit.MILLISECONDS)
-                    .observeOn(aapsSchedulers.io)
-                    .subscribeOn(aapsSchedulers.io)
-                    .subscribe { response ->
-                        when (response) {
-                            is ResponseResult.Success -> {
-                                Log.d("ble_observer", "[CarelevoPatchRx::proceedPatchEvent] response success")
-                            }
-
-                            is ResponseResult.Error   -> {
-                                Log.d("ble_observer", "[CarelevoPatchRx::proceedPatchEvent] response error : ${response.e}")
-                            }
-
-                            else                      -> {
-                                Log.d("ble_observer", "[CarelevoPatchRx::proceedPatchEvent] response failed")
-                            }
-                        }
-                    }
-            }
+            is WarningReportResultModel -> handleAlarm("warning", model.value, model.cause)
+            is AlertReportResultModel -> handleAlarm("alert", model.value, model.cause)
+            is NoticeReportResultModel -> handleAlarm("notice", model.value, model.cause)
+            is RetrieveOperationInfoResultModel -> updateRemainAndRefreshInfusion(model)
+            is InfusionInfoReportResultModel -> updateInfusionInfo(model)
         }
     }
 
+    private fun updateRemainAndRefreshInfusion(model: RetrieveOperationInfoResultModel) {
+        val requestModel = CarelevoPatchRptInfusionInfoDefaultRequestModel(remains = model.remains)
+
+        bleDisposable += patchRptInfusionInfoProcessUseCase.execute(requestModel)
+            .timeout(3000L, TimeUnit.MILLISECONDS)
+            .observeOn(aapsSchedulers.io)
+            .subscribeOn(aapsSchedulers.main)
+            .subscribe { response ->
+                when (response) {
+                    is ResponseResult.Success -> {
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPatchRx::proceedPatchEvent] response success")
+                        refreshPatchInfusionInfo()
+                    }
+
+                    is ResponseResult.Error -> {
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPatchRx::proceedPatchEvent] response error : ${response.e}")
+                    }
+
+                    else -> {
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPatchRx::proceedPatchEvent] response failed")
+                    }
+                }
+            }
+    }
+
+    // 패치에 받은 내용 저장
+    private fun updateInfusionInfo(model: InfusionInfoReportResultModel) {
+        val requestModel = CarelevoPatchRptInfusionInfoRequestModel(
+            runningMinute = model.runningMinutes,
+            remains = model.remains,
+            infusedTotalBasalAmount = model.infusedTotalBasalAmount,
+            infusedTotalBolusAmount = model.infusedTotalBolusAmount,
+            pumpState = model.pumpState.commandToCode(),
+            mode = model.mode.commandToCode(),
+            currentInfusedProgramVolume = model.currentInfusedProgramVolume,
+            realInfusedTime = model.realInfusedTime
+        )
+
+        bleDisposable += patchRptInfusionInfoProcessUseCase.execute(requestModel)
+            .timeout(3, TimeUnit.SECONDS)
+            .observeOn(aapsSchedulers.io)
+            .subscribeOn(aapsSchedulers.io)
+            .subscribe()
+    }
+
+    // 패치에 요청
+    private fun refreshPatchInfusionInfo() {
+        if (!isBluetoothEnabled()) {
+            return
+        }
+        if (!isCarelevoConnected()) {
+            return
+        }
+
+        infoDisposable += requestPatchInfusionInfoUseCase.execute()
+            .subscribeOn(aapsSchedulers.io)
+            .observeOn(aapsSchedulers.main)
+            .timeout(3, TimeUnit.SECONDS)
+            .subscribe()
+    }
+
     private fun handleAlarm(modelType: String, value: Int?, cause: AlarmCause) {
-        Log.d("ble_observer", "[CarelevoPatchRx::proceedPatchEvent] $modelType report : $value, $cause")
+        aapsLogger.debug(LTag.PUMP, "[CarelevoPatchRx::proceedPatchEvent] $modelType report : $value, $cause")
         val info = CarelevoAlarmInfo(
             alarmId = System.currentTimeMillis().toString(),
             alarmType = cause.alarmType,
@@ -355,31 +378,31 @@ class CarelevoPatch @Inject constructor(
         )
         bleDisposable += carelevoAlarmInfoUseCase.upsertAlarm(info)
             .subscribeOn(aapsSchedulers.io)
-            .observeOn(aapsSchedulers.io)
+            .observeOn(aapsSchedulers.main)
             .subscribe(
-                { Log.d("alarm", "upsert complete") },
-                { e -> Log.e("alarm", "upsert error", e) }
+                { aapsLogger.debug(LTag.PUMP, "handleAlarm upsert complete") },
+                { e -> aapsLogger.error(LTag.PUMP, "handleAlarm upsert error", e) }
             )
     }
 
     private fun observeInfusionInfo() {
         infoDisposable += infusionInfoMonitorUseCase.execute()
-            .observeOn(aapsSchedulers.io)
             .subscribeOn(aapsSchedulers.io)
+            .observeOn(aapsSchedulers.main)
             .subscribe { response ->
                 when (response) {
                     is ResponseResult.Success -> {
                         val result = response.data as CarelevoInfusionInfoDomainModel?
-                        Log.d("info_observer", "[CarelevoPatchRx::observeInfusionInfo] response success result ==> $result")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPatchRx::observeInfusionInfo] response success result ==> $result")
                         _infusionInfo.onNext(Optional.ofNullable(result))
                     }
 
-                    is ResponseResult.Error   -> {
-                        Log.d("info_observer", "[CarelevoPatchRx::observeInfusionInfo] response error : ${response.e}")
+                    is ResponseResult.Error -> {
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPatchRx::observeInfusionInfo] response error : ${response.e}")
                     }
 
-                    else                      -> {
-                        Log.d("info_observer", "[CarelevoPatchRx::observeInfusionInfo] response failed")
+                    else -> {
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPatchRx::observeInfusionInfo] response failed")
                     }
                 }
             }
@@ -387,22 +410,22 @@ class CarelevoPatch @Inject constructor(
 
     private fun observePatchInfo() {
         infoDisposable += patchInfoMonitorUseCase.execute()
-            .observeOn(aapsSchedulers.io)
             .subscribeOn(aapsSchedulers.io)
+            .observeOn(aapsSchedulers.main)
             .subscribe { response ->
                 when (response) {
                     is ResponseResult.Success -> {
                         val result = response.data as CarelevoPatchInfoDomainModel?
-                        Log.d("info_observer", "[CarelevoPatchRx::observePatchInfo] response success result ==> $result")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPatchRx::observePatchInfo] response success result ==> $result")
                         _patchInfo.onNext(Optional.ofNullable(result))
                     }
 
-                    is ResponseResult.Error   -> {
-                        Log.d("info_observer", "[CarelevoPatchRx::observePatchInfo] response error : ${response.e}")
+                    is ResponseResult.Error -> {
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPatchRx::observePatchInfo] response error : ${response.e}")
                     }
 
-                    else                      -> {
-                        Log.d("info_observer", "[CarelevoPatchRx::observePatchInfo] response failed")
+                    else -> {
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPatchRx::observePatchInfo] response failed")
                     }
                 }
             }
@@ -410,25 +433,25 @@ class CarelevoPatch @Inject constructor(
 
     private fun observeUserSettingInfo() {
         infoDisposable += userSettingInfoMonitorUseCase.execute()
-            .observeOn(aapsSchedulers.io)
             .subscribeOn(aapsSchedulers.io)
+            .observeOn(aapsSchedulers.main)
             .subscribe { response ->
                 when (response) {
                     is ResponseResult.Success -> {
                         val result = response.data as CarelevoUserSettingInfoDomainModel?
-                        Log.d("info_observer", "[CarelevoPatchRx::observeUserSettingInfo] response success result ==> $result")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPatchRx::observeUserSettingInfo] response success result ==> $result")
                         _userSettingInfo.onNext(Optional.ofNullable(result))
                         if (result == null) {
                             createUserSettingInfo()
                         }
                     }
 
-                    is ResponseResult.Error   -> {
-                        Log.d("info_observer", "[CarelevoPatchRx::observeUserSettingInfo] response error : ${response.e}")
+                    is ResponseResult.Error -> {
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPatchRx::observeUserSettingInfo] response error : ${response.e}")
                     }
 
-                    else                      -> {
-                        Log.d("info_observer", "[CarelevoPatchRx::observeUserSettingInfo] response failed")
+                    else -> {
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPatchRx::observeUserSettingInfo] response failed")
                     }
                 }
             }
@@ -447,62 +470,61 @@ class CarelevoPatch @Inject constructor(
             if (state.getOrNull() is PatchState.ConnectedBooted && (userSettingInfo?.getOrNull()?.needLowInsulinNoticeAmountSyncPatch == true)) {
                 updateLowInsulinNoticeAmount(userSettingInfo.getOrNull()?.lowInsulinNoticeAmount ?: 0)
             }
-        }.observeOn(aapsSchedulers.io)
+        }.observeOn(aapsSchedulers.main)
             .subscribeOn(aapsSchedulers.io)
             .subscribe {
-                Log.d("info_observer", "[CarelevoPatchRx::observeSyncPatch] response success")
+                aapsLogger.debug(LTag.PUMP, "[CarelevoPatchRx::observeSyncPatch] response success")
             }
     }
 
     private fun updateMaxBolusDose(maxBolusDose: Double) {
-        infoDisposable += updateMaxBolusDoseUseCase.execute(
-            CarelevoUserSettingInfoRequestModel(
-                patchState = patchState.value?.getOrNull(),
-                maxBolusDose = maxBolusDose
-            )
+        val requestModel = CarelevoUserSettingInfoRequestModel(
+            patchState = patchState.value?.getOrNull(),
+            maxBolusDose = maxBolusDose
         )
+
+        infoDisposable += updateMaxBolusDoseUseCase.execute(requestModel)
             .timeout(3000L, TimeUnit.MILLISECONDS)
-            .observeOn(aapsSchedulers.io)
             .subscribeOn(aapsSchedulers.io)
+            .observeOn(aapsSchedulers.main)
             .subscribe { response ->
                 when (response) {
                     is ResponseResult.Success -> {
-                        Log.d("info_observer", "[CarelevoPatchRx::updateMaxBolusDose] response success")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPatchRx::updateMaxBolusDose] response success")
                     }
 
-                    is ResponseResult.Error   -> {
-                        Log.d("info_observer", "[CarelevoPatchRx::updateMaxBolusDose] response error : ${response.e}")
+                    is ResponseResult.Error -> {
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPatchRx::updateMaxBolusDose] response error : ${response.e}")
                     }
 
-                    else                      -> {
-                        Log.d("info_observer", "[CarelevoPatchRx::updateMaxBolusDose] response failed")
+                    else -> {
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPatchRx::updateMaxBolusDose] response failed")
                     }
                 }
             }
     }
 
     private fun updateLowInsulinNoticeAmount(lowInsulinNoticeAmount: Int) {
-        infoDisposable += updateLowInsulinNoticeAmountUseCase.execute(
-            CarelevoUserSettingInfoRequestModel(
-                patchState = patchState.value?.getOrNull(),
-                lowInsulinNoticeAmount = lowInsulinNoticeAmount
-            )
+        val requestModel = CarelevoUserSettingInfoRequestModel(
+            patchState = patchState.value?.getOrNull(),
+            lowInsulinNoticeAmount = lowInsulinNoticeAmount
         )
+        infoDisposable += updateLowInsulinNoticeAmountUseCase.execute(requestModel)
             .timeout(3000L, TimeUnit.MILLISECONDS)
-            .observeOn(aapsSchedulers.io)
             .subscribeOn(aapsSchedulers.io)
+            .observeOn(aapsSchedulers.main)
             .subscribe { response ->
                 when (response) {
                     is ResponseResult.Success -> {
-                        Log.d("info_observer", "[CarelevoPatchRx::updateLowInsulinNoticeAmount] response success")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPatchRx::updateLowInsulinNoticeAmount] response success")
                     }
 
-                    is ResponseResult.Error   -> {
-                        Log.d("info_observer", "[CarelevoPatchRx::updateLowInsulinNoticeAmount] response error : ${response.e}")
+                    is ResponseResult.Error -> {
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPatchRx::updateLowInsulinNoticeAmount] response error : ${response.e}")
                     }
 
-                    else                      -> {
-                        Log.d("info_observer", "[CarelevoPatchRx::updateLowInsulinNoticeAmount] response failed")
+                    else -> {
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPatchRx::updateLowInsulinNoticeAmount] response failed")
                     }
                 }
             }
@@ -512,29 +534,15 @@ class CarelevoPatch @Inject constructor(
         val maxBolusDose = preferences.get(DoubleKey.SafetyMaxBolus)
         val lowInsulinNoticeAmount = sp.getInt(R.string.key_carelevo_low_reservoir_reminders, 0)
 
-        infoDisposable += createUserSettingInfoUseCase.execute(
-            CarelevoUserSettingInfoRequestModel(
-                lowInsulinNoticeAmount = lowInsulinNoticeAmount,
-                maxBasalSpeed = 15.0,
-                maxBolusDose = maxBolusDose
-            )
+        val requestModel = CarelevoUserSettingInfoRequestModel(
+            lowInsulinNoticeAmount = lowInsulinNoticeAmount,
+            maxBasalSpeed = 15.0,
+            maxBolusDose = maxBolusDose
         )
-            .observeOn(aapsSchedulers.io)
-            .subscribe { response ->
-                when (response) {
-                    is ResponseResult.Success -> {
-                        Log.d("patch_test", "[CarelevoPatch::createUserSettingInfo] response success")
-                    }
-
-                    is ResponseResult.Error   -> {
-                        Log.d("patch_test", "[CarelevoPatch::createUserSettingInfo] response error : ${response.e}")
-                    }
-
-                    else                      -> {
-                        Log.d("patch_test", "[CarelevoPatch::createUserSettingInfo] response failed")
-                    }
-                }
-            }
+        infoDisposable += createUserSettingInfoUseCase.execute(requestModel)
+            .subscribeOn(aapsSchedulers.io)
+            .observeOn(aapsSchedulers.main)
+            .subscribe()
     }
 
 }

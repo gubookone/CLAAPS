@@ -12,3 +12,7 @@ data class CarelevoPatchRptInfusionInfoRequestModel(
     val currentInfusedProgramVolume: Double,
     val realInfusedTime: Int
 ) : CarelevoUseCaseRequest
+
+data class CarelevoPatchRptInfusionInfoDefaultRequestModel(
+    val remains: Double,
+) : CarelevoUseCaseRequest

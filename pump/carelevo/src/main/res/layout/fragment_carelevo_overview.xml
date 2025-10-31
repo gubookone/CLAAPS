@@ -5,6 +5,8 @@
 
     <data>
 
+        <import type="android.view.View" />
+
         <variable
             name="viewModel"
             type="info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoOverviewViewModel" />
@@ -88,7 +90,7 @@
                     app:valueText="@{ViewExtKt.convertMinutesToDaysComputeHoursMinutes(context, viewModel.runningRemainMinutes)}" />
 
                 <info.nightscout.androidaps.plugins.pump.carelevo.ui.widget.CarelevoKeyValueRowView
-                    android:id="@+id/container_pump_state"
+                    android:id="@+id/container_basal_state"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     app:bottomLineVisible="@{false}"
@@ -103,7 +105,7 @@
                     android:layout_height="wrap_content"
                     app:bottomLineVisible="@{false}"
                     app:keyText="@{@string/carelevo_basal_rate_key}"
-                    app:layout_constraintTop_toBottomOf="@+id/container_pump_state"
+                    app:layout_constraintTop_toBottomOf="@+id/container_basal_state"
                     app:topLineVisible="@{false}"
                     app:valueText="@{String.format(@string/common_label_unit_value_dose_per_speed_with_space, viewModel.basalRate != null ? viewModel.basalRate : 0)}" />
 
@@ -111,6 +113,7 @@
                     android:id="@+id/container_temp_basal_rate"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:visibility="@{viewModel.tempBasalRate == null ? View.GONE : View.VISIBLE}"
                     app:bottomLineVisible="@{false}"
                     app:keyText="@{@string/carelevo_temp_basal_rate_key}"
                     app:layout_constraintTop_toBottomOf="@+id/container_basal_rate"
@@ -118,12 +121,56 @@
                     app:valueText="@{String.format(@string/common_label_unit_value_dose_per_speed_with_space, viewModel.tempBasalRate != null ? viewModel.tempBasalRate : 0)}" />
 
                 <info.nightscout.androidaps.plugins.pump.carelevo.ui.widget.CarelevoKeyValueRowView
+                    android:id="@+id/container_bolus_state"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:visibility="@{viewModel.bolusStatus == null ? View.GONE : View.VISIBLE}"
+                    app:bottomLineVisible="@{false}"
+                    app:keyText="@{@string/carelevo_bolus_status_key}"
+                    app:layout_constraintTop_toBottomOf="@+id/container_temp_basal_rate"
+                    app:topLineVisible="@{true}"
+                    app:valueText="@{ViewExtKt.setInfusionStateText(viewModel.bolusStatus, context)}" />
+
+                <info.nightscout.androidaps.plugins.pump.carelevo.ui.widget.CarelevoKeyValueRowView
+                    android:id="@+id/container_imme_bolus_rate"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:visibility="@{viewModel.immeBolusRate == null ? View.GONE : View.VISIBLE}"
+                    app:bottomLineVisible="@{false}"
+                    app:keyText="@{@string/carelevo_imme_bolus_rate_key}"
+                    app:layout_constraintTop_toBottomOf="@+id/container_bolus_state"
+                    app:topLineVisible="@{false}"
+                    app:valueText="@{String.format(@string/common_label_unit_value_dose_with_space, viewModel.immeBolusRate != null ? viewModel.immeBolusRate : 0)}" />
+
+                <info.nightscout.androidaps.plugins.pump.carelevo.ui.widget.CarelevoKeyValueRowView
+                    android:id="@+id/container_extend_bolus_rate"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:visibility="@{viewModel.extendBolusRate == null ? View.GONE : View.VISIBLE}"
+                    app:bottomLineVisible="@{false}"
+                    app:keyText="@{@string/carelevo_extend_bolus_rate_key}"
+                    app:layout_constraintTop_toBottomOf="@+id/container_imme_bolus_rate"
+                    app:topLineVisible="@{false}"
+                    app:valueText="@{String.format(@string/common_label_unit_value_dose_with_space, viewModel.extendBolusRate != null ? viewModel.extendBolusRate : 0)}" />
+
+                <info.nightscout.androidaps.plugins.pump.carelevo.ui.widget.CarelevoKeyValueRowView
+                    android:id="@+id/container_bolus_time_range"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:visibility="@{viewModel.bolusTimeRange == null ? View.GONE : View.VISIBLE}"
+                    app:bottomLineVisible="@{false}"
+                    app:keyText="@{@string/carelevo_bolus_time_range}"
+                    app:layout_constraintTop_toBottomOf="@+id/container_extend_bolus_rate"
+                    app:topLineVisible="@{false}"
+                    app:valueText="@{viewModel.bolusTimeRange}" />
+
+                <info.nightscout.androidaps.plugins.pump.carelevo.ui.widget.CarelevoKeyValueRowView
                     android:id="@+id/container_insulin_remain"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     app:bottomLineVisible="@{false}"
                     app:keyText="@{@string/carelevo_insulin_remain_key}"
-                    app:layout_constraintTop_toBottomOf="@+id/container_temp_basal_rate"
+                    app:layout_constraintTop_toBottomOf="@+id/container_bolus_time_range"
                     app:topLineVisible="@{true}"
                     app:valueText="@{String.valueOf(viewModel.insulinRemains)}" />
 

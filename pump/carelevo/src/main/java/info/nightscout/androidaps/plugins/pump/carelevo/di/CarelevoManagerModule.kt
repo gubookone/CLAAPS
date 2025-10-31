@@ -1,5 +1,6 @@
 package info.nightscout.androidaps.plugins.pump.carelevo.di
 
+import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.rx.AapsSchedulers
 import app.aaps.core.interfaces.rx.bus.RxBus
 import app.aaps.core.interfaces.sharedPreferences.SP
@@ -16,6 +17,7 @@ import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.alarm.Car
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.infusion.CarelevoInfusionInfoMonitorUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.CarelevoPatchInfoMonitorUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.CarelevoPatchRptInfusionInfoProcessUseCase
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.CarelevoRequestPatchInfusionInfoUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.userSetting.CarelevoCreateUserSettingInfoUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.userSetting.CarelevoUpdateLowInsulinNoticeAmountUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.userSetting.CarelevoUpdateMaxBolusDoseUseCase
@@ -50,6 +52,7 @@ class CarelevoManagerModule {
         rxBus: RxBus,
         sp: SP,
         preferences: Preferences,
+        aapsLogger: AAPSLogger,
         carelevoInfusionInfoMonitorUseCase: CarelevoInfusionInfoMonitorUseCase,
         carelevoPatchInfoMonitorUseCase: CarelevoPatchInfoMonitorUseCase,
         carelevoUserSettingInfoMonitorUseCase: CarelevoUserSettingInfoMonitorUseCase,
@@ -57,7 +60,8 @@ class CarelevoManagerModule {
         carelevoUpdateMaxBolusDoseUseCase: CarelevoUpdateMaxBolusDoseUseCase,
         carelevoUpdateLowInfusionNoticeAmountUseCase: CarelevoUpdateLowInsulinNoticeAmountUseCase,
         carelevoCreateUserSettingInfoUserCase: CarelevoCreateUserSettingInfoUseCase,
-        carelevoAlarmInfoUseCase: CarelevoAlarmInfoUseCase
+        carelevoAlarmInfoUseCase: CarelevoAlarmInfoUseCase,
+        requestPatchInfusionInfoUseCase: CarelevoRequestPatchInfusionInfoUseCase
     ): CarelevoPatch {
         return CarelevoPatch(
             carelevoBleController,
@@ -66,6 +70,7 @@ class CarelevoManagerModule {
             rxBus,
             sp,
             preferences,
+            aapsLogger,
             carelevoInfusionInfoMonitorUseCase,
             carelevoPatchInfoMonitorUseCase,
             carelevoUserSettingInfoMonitorUseCase,
@@ -73,7 +78,8 @@ class CarelevoManagerModule {
             carelevoUpdateMaxBolusDoseUseCase,
             carelevoUpdateLowInfusionNoticeAmountUseCase,
             carelevoCreateUserSettingInfoUserCase,
-            carelevoAlarmInfoUseCase
+            carelevoAlarmInfoUseCase,
+            requestPatchInfusionInfoUseCase
         )
     }
 }

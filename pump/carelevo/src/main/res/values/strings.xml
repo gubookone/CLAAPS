@@ -27,13 +27,17 @@
     <string name="carelevo_lot_number_key">로트 번호</string>
     <string name="carelevo_boot_date_time_key">기기 시작 시간</string>
     <string name="carelevo_expiration_key">만료 시간</string>
-    <string name="carelevo_infusion_status_key">주입 상태</string>
+    <string name="carelevo_infusion_status_key">기저 주입 상태</string>
     <string name="carelevo_basal_rate_key">기저 속도</string>
     <string name="carelevo_temp_basal_rate_key">임시 기저 속도</string>
     <string name="carelevo_insulin_remain_key">남은 인슐린</string>
     <string name="carelevo_total_delivered_basal_key">총 주입 기저</string>
     <string name="carelevo_total_delivered_bolus_key">총 주입 볼러스</string>
     <string name="carelevo_running_remain_time">패치 남은 시간</string>
+    <string name="carelevo_bolus_status_key">볼러스 상태</string>
+    <string name="carelevo_imme_bolus_rate_key">볼러스 주입량</string>
+    <string name="carelevo_extend_bolus_rate_key">볼러스 주입량</string>
+    <string name="carelevo_bolus_time_range">볼러스 주입 기간</string>
 
     <string name="common_label_unit_value_duration_hour_and_minute">%d시간 %d분</string>
     <string name="common_label_unit_value_date_format_year_month_date_day">yyyy.MM.dd (E)</string>
@@ -156,6 +160,10 @@
     <string name="carelevo_toast_mag_set_basal_resume_fail">주입 재개 실패 했습니다. 다시 시도해 주세요.</string>
     <string name="carelevo_toast_mag_set_basal_suspend_success">"주입 정지 성공했습니다."</string>
     <string name="carelevo_toast_mag_set_basal_suspend_fail">주입 정지 실패했습니다. 다시 시도해 주세요.</string>
+    <string name="carelevo_toast_msg_not_connected">연결된 패치가 없습니다.</string>
+    <string name="carelevo_toast_msg_safety_check_success">안전점검에 성공했습니다.</string>
+    <string name="carelevo_toast_msg_safety_check_failed">안전점검에 실패했습니다.</string>
+
 
     <string name="alarm_feat_label_warning">경고</string>
     <string name="alarm_feat_label_alert">주의</string>
