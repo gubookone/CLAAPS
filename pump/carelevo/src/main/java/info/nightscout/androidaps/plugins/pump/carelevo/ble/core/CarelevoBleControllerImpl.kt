@@ -158,11 +158,10 @@ class CarelevoBleControllerImpl @Inject constructor(
     }
 
     private fun connectToSingle(address: String): Single<CommandResult<Boolean>> {
-        return Single.create<CommandResult<Boolean>> { emitter ->
-            // 코루틴으로 suspend 호출
+        return Single.create { emitter ->
             val job = CoroutineScope(Dispatchers.IO).launch {
                 try {
-                    val result = btManager.connectTo(address) // ✅ suspend 호출
+                    val result = btManager.connectTo(address)
                     if (!emitter.isDisposed) {
                         emitter.onSuccess(result)
                     }
@@ -173,7 +172,6 @@ class CarelevoBleControllerImpl @Inject constructor(
                 }
             }
 
-            // Single 구독이 해제되면 코루틴도 취소되게 함
             emitter.setCancellable { job.cancel() }
         }
     }

@@ -26,6 +26,7 @@ import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.infusion.
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.infusion.CarelevoPumpResumeUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.infusion.CarelevoPumpStopUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.CarelevoConnectNewPatchUseCase
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.CarelevoPatchAdditionalPrimingUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.CarelevoPatchCannulaInsertionCheckUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.CarelevoPatchCannulaInsertionConfirmUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.CarelevoPatchDiscardUseCase
@@ -440,5 +441,14 @@ class CarelevoUseCaseModule {
         patchObserver: CarelevoPatchObserver
     ): CarelevoPatchBuzzModifyUseCase {
         return CarelevoPatchBuzzModifyUseCase(patchObserver, patchRepository)
+    }
+
+    @Provides
+    fun provideCarelevoPatchAdditionalPrimingUseCase(
+        patchRepository: CarelevoPatchRepository,
+        patchObserver: CarelevoPatchObserver
+    ): CarelevoPatchAdditionalPrimingUseCase {
+        return CarelevoPatchAdditionalPrimingUseCase(patchRepository, patchObserver)
+
     }
 }

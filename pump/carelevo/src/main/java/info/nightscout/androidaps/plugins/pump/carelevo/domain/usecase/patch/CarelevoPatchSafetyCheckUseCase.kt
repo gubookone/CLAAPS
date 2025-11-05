@@ -91,7 +91,7 @@ class CarelevoPatchSafetyCheckUseCase @Inject constructor(
                     .ofType(SafetyCheckResultModel::class.java)
                     .filter { it.result == SafetyCheckResult.REP_REQUEST || it.result == SafetyCheckResult.REP_REQUEST1 }
                     .firstOrError()
-                    .timeout(30, TimeUnit.SECONDS) // 첫 응답은 보통 빨리 옴(필요 시 조정)
+                    .timeout(100, TimeUnit.SECONDS) // 첫 응답은 보통 빨리 옴(필요 시 조정)
 
                 requestReplySingle.flatMap { requestReply ->
                     Log.d("connect_test", "[UseCase] 2. 요청 결과 수신: $requestReply, ${requestReply.durationSeconds}")

@@ -13,6 +13,7 @@ import info.nightscout.androidaps.plugins.pump.carelevo.common.model.PatchState
 import info.nightscout.androidaps.plugins.pump.carelevo.common.model.State
 import info.nightscout.androidaps.plugins.pump.carelevo.common.model.UiState
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.ResponseResult
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.CarelevoPatchAdditionalPrimingUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.CarelevoPatchDiscardUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.CarelevoPatchForceDiscardUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.patch.CarelevoPatchSafetyCheckUseCase
@@ -32,7 +33,8 @@ class CarelevoPatchSafetyCheckViewModel @Inject constructor(
     private val carelevoPatch: CarelevoPatch,
     private val patchSafetyCheckUseCase: CarelevoPatchSafetyCheckUseCase,
     private val patchDiscardUseCase: CarelevoPatchDiscardUseCase,
-    private val patchForceDiscardUseCase: CarelevoPatchForceDiscardUseCase
+    private val patchForceDiscardUseCase: CarelevoPatchForceDiscardUseCase,
+    private val patchAdditionalPrimingUseCase: CarelevoPatchAdditionalPrimingUseCase
 ) : ViewModel() {
 
     private var _isCreated = false
@@ -89,8 +91,8 @@ class CarelevoPatchSafetyCheckViewModel @Inject constructor(
 
         setUiState(UiState.Loading)
         compositeDisposable += patchSafetyCheckUseCase.execute()
-            .observeOn(aapsSchedulers.io)
             .subscribeOn(aapsSchedulers.io)
+            .observeOn(aapsSchedulers.main)
             .doOnError {
                 triggerEvent(CarelevoConnectSafetyCheckEvent.SafetyCheckFailed)
             }
@@ -138,7 +140,6 @@ class CarelevoPatchSafetyCheckViewModel @Inject constructor(
         compositeDisposable += patchDiscardUseCase.execute()
             .timeout(3000L, TimeUnit.MILLISECONDS)
             .subscribeOn(aapsSchedulers.io)
-            .observeOn(aapsSchedulers.io)
             .observeOn(aapsSchedulers.main)
             .doOnError {
                 Log.d("connect_test", "[CarelevoSafetyCheckViewModel::startDiscard] doOnError called : $it")
@@ -174,7 +175,7 @@ class CarelevoPatchSafetyCheckViewModel @Inject constructor(
         compositeDisposable += patchForceDiscardUseCase.execute()
             .timeout(3000L, TimeUnit.MILLISECONDS)
             .subscribeOn(aapsSchedulers.io)
-            .observeOn(aapsSchedulers.io)
+            .observeOn(aapsSchedulers.main)
             .doOnError {
                 Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::startForceDiscard] doOnError called : $it")
                 setUiState(UiState.Idle)
@@ -203,6 +204,48 @@ class CarelevoPatchSafetyCheckViewModel @Inject constructor(
                 }
             }
     }
+
+    fun retryAdditionalPriming() {
+        if (!carelevoPatch.isBluetoothEnabled()) {
+            triggerEvent(CarelevoConnectSafetyCheckEvent.ShowMessageBluetoothNotEnabled)
+            return
+        }
+
+        if (!carelevoPatch.isCarelevoConnected()) {
+            triggerEvent(CarelevoConnectSafetyCheckEvent.ShowMessageCarelevoIsNotConnected)
+            return
+        }
+
+        setUiState(UiState.Loading)
+        compositeDisposable += patchAdditionalPrimingUseCase.execute()
+            .timeout(60, TimeUnit.SECONDS)
+            .subscribeOn(aapsSchedulers.io)
+            .observeOn(aapsSchedulers.main)
+            .doOnError {
+                Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::retryAdditionalPriming] doOnError called : $it")
+                setUiState(UiState.Idle)
+                triggerEvent(CarelevoConnectSafetyCheckEvent.DiscardFailed)
+            }.subscribe { response ->
+                when (response) {
+                    is ResponseResult.Success -> {
+                        Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::retryAdditionalPriming] response success")
+                    }
+
+                    is ResponseResult.Error -> {
+                        Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::retryAdditionalPriming] response error : ${response.e}")
+                    }
+
+                    else -> {
+                        Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::retryAdditionalPriming] response failed")
+                    }
+                }
+                setUiState(UiState.Idle)
+            }
+    }
+
+    fun isSafetyCheckPassed() = carelevoPatch.patchInfo.value?.getOrNull()?.checkSafety == true
+
+    fun isConnected() = carelevoPatch.isCarelevoConnected()
 
     override fun onCleared() {
         compositeDisposable.clear()

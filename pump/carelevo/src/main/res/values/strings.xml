@@ -35,8 +35,8 @@
     <string name="carelevo_total_delivered_bolus_key">총 주입 볼러스</string>
     <string name="carelevo_running_remain_time">패치 남은 시간</string>
     <string name="carelevo_bolus_status_key">볼러스 상태</string>
-    <string name="carelevo_imme_bolus_rate_key">볼러스 주입량</string>
-    <string name="carelevo_extend_bolus_rate_key">볼러스 주입량</string>
+    <string name="carelevo_imme_bolus_rate_key">즉시 볼러스 주입량</string>
+    <string name="carelevo_extend_bolus_rate_key">연장 볼러스 주입량</string>
     <string name="carelevo_bolus_time_range">볼러스 주입 기간</string>
 
     <string name="common_label_unit_value_duration_hour_and_minute">%d시간 %d분</string>
@@ -101,6 +101,7 @@
     <string name="carelevo_btn_input_insulin_amount">인슐린 양 입력</string>
     <string name="carelevo_btn_input_search_patch">패치 검색</string>
     <string name="carelevo_btn_retry">재시도</string>
+    <string name="carelevo_btn_next">다음</string>
     <string name="carelevo_btn_safety_check">안전점검</string>
     <string name="carelevo_btn_ready_complete">준비완료</string>
     <string name="carelevo_btn_close">닫기</string>

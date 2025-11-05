@@ -47,6 +47,7 @@ import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.userSetti
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.userSetting.CarelevoUpdateMaxBolusDoseUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.userSetting.CarelevoUserSettingInfoMonitorUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.userSetting.model.CarelevoUserSettingInfoRequestModel
+import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.plusAssign
@@ -113,15 +114,39 @@ class CarelevoPatch @Inject constructor(
 
     fun initPatch() {
         if (!isWorking) {
+            observePatchInfo()
             observeBleState()
             observeChangeState()
             observePatch()
-            observePatchInfo()
             observeInfusionInfo()
             observeUserSettingInfo()
             observeSyncPatch()
             _isWorking = true
         }
+    }
+
+    fun initPatchAndAwait(): Completable =
+        Completable.defer {
+            initPatch()
+            // '초기화 완료'로 인정할 상태를 명시
+            patchState
+                .filter { state ->
+                    state == PatchState.NotConnectedNotBooting || state == PatchState.ConnectedBooted
+                }
+                .firstOrError()
+                .ignoreElement()
+        }
+
+    /** 중복 호출 대비: 같은 진행을 공유(cache)하는 1회용 래퍼 (원하면 사용) */
+    @Volatile private var inFlightInit: Completable? = null
+    fun initPatchOnce(): Completable = synchronized(this) {
+        inFlightInit?.let { return it }
+        val c = initPatchAndAwait()
+            .timeout(20, TimeUnit.SECONDS)   // 필요시 타임아웃
+            .cache()                        // 구독자에게 진행 공유
+            .doFinally { synchronized(this) { inFlightInit = null } }
+        inFlightInit = c
+        c
     }
 
     fun isCarelevoConnected(): Boolean {

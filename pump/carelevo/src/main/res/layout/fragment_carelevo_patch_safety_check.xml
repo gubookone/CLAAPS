@@ -51,6 +51,34 @@
             tools:text="안전점검 후 인슐린 방울이 맺혔는지 확인해 주세요." />
 
         <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_retry"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            app:layout_constraintBottom_toTopOf="@id/container_buttons">
+
+            <TextView
+                android:id="@+id/tv_retry_desc"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/carelevo_patch_safety_check_retry_desc"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <Button
+                android:id="@+id/btn_retry"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/carelevo_btn_retry"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/tv_retry_desc" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/container_buttons"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -64,18 +92,29 @@
                 android:layout_marginEnd="8dp"
                 android:text="@string/carelevo_btn_patch_expiration"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@+id/btn_next"
+                app:layout_constraintEnd_toStartOf="@+id/btn_safety_check"
                 app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <Button
+                android:id="@+id/btn_safety_check"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:text="@string/carelevo_btn_safety_check"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/btn_next"
+                app:layout_constraintStart_toEndOf="@+id/btn_discard"
                 app:layout_constraintTop_toTopOf="parent" />
 
             <Button
                 android:id="@+id/btn_next"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="@string/carelevo_btn_safety_check"
+                android:text="@string/carelevo_btn_next"
+                android:visibility="gone"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toEndOf="@+id/btn_discard"
+                app:layout_constraintStart_toEndOf="@+id/btn_safety_check"
                 app:layout_constraintTop_toTopOf="parent" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>

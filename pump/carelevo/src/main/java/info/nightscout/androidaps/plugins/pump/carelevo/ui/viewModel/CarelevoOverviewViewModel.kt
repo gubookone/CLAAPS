@@ -1,6 +1,5 @@
 package info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel
 
-import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -155,7 +154,6 @@ class CarelevoOverviewViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             secondTick.collect {
-                //Log.d("plugin_test", "[CarelevoOverviewViewModel::init] : $it")
                 clearExpiredInfusions()
             }
         }
@@ -172,6 +170,7 @@ class CarelevoOverviewViewModel @Inject constructor(
                 val patchInfo = info?.getOrNull()
                 if (patchInfo == null) {
                     aapsLogger.debug(LTag.PUMP, "[observePatchInfo] skip null/failure")
+                    _isCheckScreen.tryEmit(null)
                     Observable.empty()
                 } else {
                     aapsLogger.debug(LTag.PUMP, "[observePatchInfo] state: $patchInfo")
@@ -184,7 +183,6 @@ class CarelevoOverviewViewModel @Inject constructor(
             .subscribe(
                 { ui ->
                     aapsLogger.debug(LTag.PUMP, "[CarelevoOverviewViewModel::observePatchInfo] state : $ui")
-
                 },
                 { e ->
                     aapsLogger.debug(LTag.PUMP, "[CarelevoOverviewViewModel::observePatchInfo] onError", e)
@@ -200,6 +198,7 @@ class CarelevoOverviewViewModel @Inject constructor(
             }
 
             patchInfo.checkSafety == false -> CarelevoScreenType.SAFETY_CHECK
+            patchInfo.checkSafety == true && patchInfo.checkNeedle == null -> CarelevoScreenType.SAFETY_CHECK
             else -> null
         }
         _isCheckScreen.tryEmit(screenType)
@@ -219,7 +218,7 @@ class CarelevoOverviewViewModel @Inject constructor(
     }
 
     private fun buildUi(info: CarelevoPatchInfoDomainModel): CarelevoOverviewUiModel {
-        Log.d("", "[CarelevoOverviewViewModel::buildUi] info : $info")
+        aapsLogger.debug(LTag.PUMP, "[CarelevoOverviewViewModel::buildUi] info : $info")
         val bootLdt = parseBootDateTime(info.bootDateTime)
         val bootUi = bootLdt?.format(DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm")) ?: ""
 
@@ -599,6 +598,13 @@ class CarelevoOverviewViewModel @Inject constructor(
             pumpSerial = carelevoPatch.patchInfo.value?.getOrNull()?.manufactureNumber ?: ""
         )
 
+        pumpSync.syncStopExtendedBolusWithPumpId(
+            timestamp = dateUtil.now(),
+            endPumpId = dateUtil.now(),
+            pumpType = PumpType.CAREMEDI_CARELEVO,
+            pumpSerial = carelevoPatch.patchInfo.value?.getOrNull()?.manufactureNumber ?: ""
+        )
+
         // 로컬 인퓨전 정리
         clearInfusionInfo(
             CarelevoDeleteInfusionRequestModel(
@@ -705,7 +711,6 @@ class CarelevoOverviewViewModel @Inject constructor(
     }
 
     fun refreshPatchInfusionInfo() {
-        Log.d("plugin_test", "[CarelevoOverviewViewModel::refreshPatchInfusionInfo] : ${carelevoPatch.isBluetoothEnabled()}, ${carelevoPatch.isCarelevoConnected()}")
         if (!carelevoPatch.isBluetoothEnabled()) {
             return
         }
@@ -714,7 +719,7 @@ class CarelevoOverviewViewModel @Inject constructor(
         }
 
         compositeDisposable += requestPatchInfusionInfoUseCase.execute()
-            .observeOn(aapsSchedulers.io)
+            .observeOn(aapsSchedulers.main)
             .subscribeOn(aapsSchedulers.io)
             .timeout(3000L, TimeUnit.MILLISECONDS)
             .subscribe()

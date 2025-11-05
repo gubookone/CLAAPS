@@ -35,17 +35,17 @@ import kotlin.jvm.optionals.getOrNull
 
 class CarelevoCommunicationCheckViewModel @Inject constructor(
     private val aapsSchedulers: AapsSchedulers,
-    private val bleController : CarelevoBleController,
-    private val carelevoPatch : CarelevoPatch,
-    private val patchForceDiscardUseCase : CarelevoPatchForceDiscardUseCase
+    private val bleController: CarelevoBleController,
+    private val carelevoPatch: CarelevoPatch,
+    private val patchForceDiscardUseCase: CarelevoPatchForceDiscardUseCase
 ) : ViewModel() {
 
-    @Inject @Named("characterTx") lateinit var txUuid : UUID
+    @Inject @Named("characterTx") lateinit var txUuid: UUID
 
     private val _event = MutableEventFlow<Event>()
     val event = _event.asEventFlow()
 
-    private val _uiState : MutableStateFlow<State> = MutableStateFlow(UiState.Idle)
+    private val _uiState: MutableStateFlow<State> = MutableStateFlow(UiState.Idle)
     val uiState = _uiState.asStateFlow()
 
     private var _isCreated = false
@@ -54,20 +54,20 @@ class CarelevoCommunicationCheckViewModel @Inject constructor(
     private val connectDisposable = CompositeDisposable()
     private val compositeDisposable = CompositeDisposable()
 
-    fun setIsCreated(isCreated : Boolean) {
+    fun setIsCreated(isCreated: Boolean) {
         _isCreated = isCreated
     }
 
     fun triggerEvent(event: Event) {
         viewModelScope.launch {
-            when(event) {
+            when (event) {
                 is CarelevoCommunicationCheckEvent -> generateEventType(event).run { _event.emit(this) }
             }
         }
     }
 
-    private fun generateEventType(event: Event) : Event {
-        return when(event) {
+    private fun generateEventType(event: Event): Event {
+        return when (event) {
             is CarelevoCommunicationCheckEvent.ShowMessageBluetoothNotEnabled -> event
             is CarelevoCommunicationCheckEvent.ShowMessagePatchAddressInvalid -> event
             is CarelevoCommunicationCheckEvent.CommunicationCheckComplete -> event
@@ -96,13 +96,13 @@ class CarelevoCommunicationCheckViewModel @Inject constructor(
                         triggerEvent(CarelevoCommunicationCheckEvent.DiscardComplete)
                     }
 
-                    is ResponseResult.Error   -> {
+                    is ResponseResult.Error -> {
                         Log.d("connect_test", "[CarelevoCommunicationCheckViewModel::startForceDiscard] response error : ${response.e}")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoCommunicationCheckEvent.DiscardFailed)
                     }
 
-                    else                      -> {
+                    else -> {
                         Log.d("connect_test", "[CarelevoCommunicationCheckViewModel::startForceDiscard] response failed")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoCommunicationCheckEvent.DiscardFailed)
@@ -112,13 +112,13 @@ class CarelevoCommunicationCheckViewModel @Inject constructor(
     }
 
     fun startReconnect() {
-        if(!carelevoPatch.isBluetoothEnabled()) {
+        if (!carelevoPatch.isBluetoothEnabled()) {
             triggerEvent(CarelevoCommunicationCheckEvent.ShowMessageBluetoothNotEnabled)
             return
         }
 
         val address = carelevoPatch.patchInfo.value?.getOrNull()?.address?.uppercase()
-        if(address == null) {
+        if (address == null) {
             triggerEvent(CarelevoCommunicationCheckEvent.ShowMessagePatchAddressInvalid)
             return
         }
@@ -126,10 +126,11 @@ class CarelevoCommunicationCheckViewModel @Inject constructor(
         connectDisposable += bleController.execute(Connect(address))
             .observeOn(aapsSchedulers.io)
             .subscribe { result ->
-                when(result) {
+                when (result) {
                     is CommandResult.Success -> {
                         Log.d("connect_test", "[CarelevoCommunicationCheckViewModel::startReconnect] connect result success")
                     }
+
                     else -> {
                         Log.d("connect_test", "[CarelevoCommunicationCheckViewModel::startReconnect] connect result failed")
                         cancelReconnect()
@@ -143,30 +144,40 @@ class CarelevoCommunicationCheckViewModel @Inject constructor(
                 setUiState(UiState.Loading)
 
                 btState.getOrNull()?.let { state ->
-                    if(state.shouldBeConnected()) {
+                    Log.d("connect_test", "[CarelevoCommunicationCheckViewModel::startReconnect] state : $state")
+                    if (state.shouldBeConnected()) {
                         bleController.execute(DiscoveryService(address))
                             .blockingGet()
-                            .takeIf { it !is CommandResult.Success }
-                            ?.let { cancelReconnect() }
+                            .also { result ->
+                                if (result !is CommandResult.Success) cancelReconnect()
+                            }.apply {
+                                setUiState(UiState.Idle)
+                            }
+
                     }
-                    if(state.shouldBeDiscovered()) {
+                    if (state.shouldBeDiscovered()) {
                         bleController.execute(EnableNotifications(address, txUuid))
                             .blockingGet()
-                            .takeIf { it !is CommandResult.Success }
-                            ?.let { cancelReconnect() }
+                            .also { result ->
+                                if (result !is CommandResult.Success) cancelReconnect()
+                            }.apply {
+                                setUiState(UiState.Idle)
+                            }
                         Thread.sleep(2000)
                         triggerEvent(CarelevoCommunicationCheckEvent.CommunicationCheckComplete)
                         connectDisposable.dispose()
                         connectDisposable.clear()
+                    }
+                    if (state.isDiscoverCleared()) {
                         setUiState(UiState.Idle)
-                    }
-                    if(state.isDiscoverCleared()) {
                         cancelReconnect()
                     }
-                    if(state.isAbnormalBondingFailed()) {
+                    if (state.isAbnormalBondingFailed()) {
+                        setUiState(UiState.Idle)
                         cancelReconnect()
                     }
-                    if(state.isReInitialized()) {
+                    if (state.isReInitialized()) {
+                        setUiState(UiState.Idle)
                         cancelReconnect()
                     }
                 }

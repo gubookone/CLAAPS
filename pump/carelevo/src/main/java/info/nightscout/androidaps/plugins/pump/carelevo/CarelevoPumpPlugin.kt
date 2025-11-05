@@ -17,6 +17,7 @@ import app.aaps.core.data.pump.defs.PumpType
 import app.aaps.core.data.pump.defs.TimeChangeType
 import app.aaps.core.data.time.T
 import app.aaps.core.interfaces.logging.AAPSLogger
+import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.notifications.Notification
 import app.aaps.core.interfaces.objects.Instantiator
 import app.aaps.core.interfaces.plugin.PluginDescription
@@ -92,6 +93,8 @@ import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.userSetti
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.userSetting.model.CarelevoPatchExpiredThresholdModifyRequestModel
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.userSetting.model.CarelevoUserSettingInfoRequestModel
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.fragments.CarelevoOverviewFragment
+import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.plusAssign
@@ -170,27 +173,20 @@ class CarelevoPumpPlugin @Inject constructor(
 
     override fun onStart() {
         super.onStart()
-
-        Log.i("plugin_test", "[CarelevoPumpPlugin::onStart] onStart called")
-
         pluginDisposable += rxBus
             .toObservable(EventPreferenceChange::class.java)
             .observeOn(aapsSchedulers.io)
             .subscribe { event ->
                 if (event.isChanged(DoubleKey.SafetyMaxBolus.key)) {
-                    Log.d("plugin_test", "[CarelevoPumpPlugin::get Pref change event] max bolus change")
                     updateMaxBolusDose()
                 }
                 if (event.isChanged(CarelevoIntPreferenceKey.CARELEVO_PATCH_EXPIRATION_REMINDER_HOURS.key)) {
-                    Log.d("plugin_test", "[CarelevoPumpPlugin::get pref change event] patch_expiration")
                     updatePatchExpiredThreshold()
                 }
                 if (event.isChanged(CarelevoIntPreferenceKey.CARELEVO_LOW_INSULIN_EXPIRATION_REMINDER_HOURS.key)) {
-                    Log.d("plugin_test", "[CarelevoPumpPlugin::get pref change event] low insulin amount change")
                     updateLowInsulinNoticeAmount()
                 }
                 if (event.isChanged(CarelevoBooleanPreferenceKey.CARELEVO_BUZZER_REMINDER.key)) {
-                    Log.d("plugin_test", "[CarelevoPumpPlugin::get pref change event] buzzer change")
                     updatePatchBuzzer()
                 }
             }
@@ -198,18 +194,44 @@ class CarelevoPumpPlugin @Inject constructor(
         pluginDisposable += rxBus
             .toObservable(EventAppInitialized::class.java)
             .observeOn(aapsSchedulers.io)
-            .subscribe {
-                carelevoProtocolParserRegister.registerParser()
-                carelevoPatch.initPatch()
-                val profile = profileFunction.getProfile()
-                carelevoPatch.setProfile(profile)
+            .flatMapCompletable {
+                Completable.fromAction { carelevoProtocolParserRegister.registerParser() }
+                    .doOnSubscribe { aapsLogger.debug(LTag.PUMP, "onStart", "1) parser registered start") }
+                    .doOnComplete { aapsLogger.debug(LTag.PUMP, "onStart", "1) parser registered done") }
 
-                val patchState = carelevoPatch.patchState.value?.getOrNull()
-                Log.d("plugin_test", "[CarelevoPumpPlugin::onStart] patchState : $patchState")
-                if (patchState != PatchState.NotConnectedNotBooting && patchState != PatchState.ConnectedBooted) {
-                    startReconnect()
-                }
+                    .andThen(
+                        carelevoPatch.initPatchOnce()
+                            .timeout(5, TimeUnit.SECONDS)
+                            .onErrorComplete()
+                            .doOnSubscribe { aapsLogger.debug(LTag.PUMP, "onStart", "2) initPatchOnce waiting") }
+                            .doOnComplete { aapsLogger.debug(LTag.PUMP, "onStart", "2) initPatchOnce completed") }
+                    )
+                    .andThen(
+                        Single.fromCallable {
+                            Log.d("onStart", "3) getProfile start")
+                            requireNotNull(profileFunction.getProfile()) { "profile is null" }
+                        }
+                            .doOnSuccess { aapsLogger.debug(LTag.PUMP, "onStart", "3) getProfile ok: $it") }
+                    )
+                    .flatMapCompletable { profile ->
+                        Completable.fromAction { carelevoPatch.setProfile(profile) }
+                            .doOnComplete { aapsLogger.debug(LTag.PUMP, "onStart", "3) setProfile done") }
+                    }
+                    .andThen(
+                        Completable.fromAction {
+                            aapsLogger.debug(LTag.PUMP, "onStart", "4) snapshot check start")
+                            val state = carelevoPatch.patchState.value?.getOrNull()
+                            val shouldReconnect = state == null ||
+                                (state != PatchState.NotConnectedNotBooting && state != PatchState.ConnectedBooted)
+                            aapsLogger.debug(LTag.PUMP, "onStart", "4) shouldReconnect=$shouldReconnect, state=$state")
+                            if (shouldReconnect) startReconnect()
+                        }.doOnComplete { aapsLogger.debug(LTag.PUMP, "onStart", "4) snapshot check done") }
+                    )
             }
+            .subscribe(
+                { aapsLogger.debug(LTag.PUMP, "onStart", "ALL COMPLETE") },
+                { e -> aapsLogger.debug(LTag.PUMP, "onStart", "chain error", e) }
+            )
 
         val filter = IntentFilter().apply {
             // 기존: 페어링 상태 변화
@@ -222,7 +244,7 @@ class CarelevoPumpPlugin @Inject constructor(
         if (bleReceiverDisposable?.isDisposed != false) {
             bleReceiverDisposable = CarelevoObserveReceiver(context, filter)
                 .subscribe { intent ->
-                    Log.d("plugin_test", "[CarelevoPumpPlugin::onStart] CarelevoObserveReceiver called: ${intent.action}")
+                    aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::onStart] CarelevoObserveReceiver called: ${intent.action}")
                     when (intent.action) {
                         BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
                             val bondState = intent.getIntExtra(
@@ -271,7 +293,7 @@ class CarelevoPumpPlugin @Inject constructor(
 
     override fun onStop() {
         super.onStop()
-        Log.d("plugin_test", "[CarelevoPumpPlugin::onStop] onStop called")
+        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::onStop] onStop called")
         deleteUserSettingInfo()
         pluginDisposable.clear()
         reconnectDisposable.clear()
@@ -293,15 +315,15 @@ class CarelevoPumpPlugin @Inject constructor(
             .subscribe { response ->
                 when (response) {
                     is ResponseResult.Success -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::updateMaxBolusDose] response success")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::updateMaxBolusDose] response success")
                     }
 
                     is ResponseResult.Error -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::updateMaxBolusDose] response error : ${response.e}")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::updateMaxBolusDose] response error : ${response.e}")
                     }
 
                     else -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::updateMaxBolusDose] response failed")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::updateMaxBolusDose] response failed")
                     }
                 }
             }
@@ -327,15 +349,15 @@ class CarelevoPumpPlugin @Inject constructor(
             .subscribe { response ->
                 when (response) {
                     is ResponseResult.Success -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::updateLowInsulinNoticeAmount] response success")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::updateLowInsulinNoticeAmount] response success")
                     }
 
                     is ResponseResult.Error -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::updateLowInsulinNoticeAmount] response error : ${response.e}")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::updateLowInsulinNoticeAmount] response error : ${response.e}")
                     }
 
                     else -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::updateLowInsulinNoticeAmount] response failed")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::updateLowInsulinNoticeAmount] response failed")
                     }
                 }
             }
@@ -358,15 +380,15 @@ class CarelevoPumpPlugin @Inject constructor(
             .subscribe { response ->
                 when (response) {
                     is ResponseResult.Success -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::updatePatchExpiredThreshold] response success")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::updatePatchExpiredThreshold] response success")
                     }
 
                     is ResponseResult.Error -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::updatePatchExpiredThreshold] response error : ${response.e}")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::updatePatchExpiredThreshold] response error : ${response.e}")
                     }
 
                     else -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::updatePatchExpiredThreshold] response failed")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::updatePatchExpiredThreshold] response failed")
                     }
                 }
             }
@@ -387,15 +409,15 @@ class CarelevoPumpPlugin @Inject constructor(
             .subscribe { response ->
                 when (response) {
                     is ResponseResult.Success -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::updatePatchBuzzer] response success")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::updatePatchBuzzer] response success")
                     }
 
                     is ResponseResult.Error -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::updatePatchBuzzer] response error : ${response.e}")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::updatePatchBuzzer] response error : ${response.e}")
                     }
 
                     else -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::updatePatchBuzzer] response failed")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::updatePatchBuzzer] response failed")
                     }
                 }
             }
@@ -409,15 +431,15 @@ class CarelevoPumpPlugin @Inject constructor(
             .subscribe { response ->
                 when (response) {
                     is ResponseResult.Success -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::deleteUserSettingInfo] response success")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::deleteUserSettingInfo] response success")
                     }
 
                     is ResponseResult.Error -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::deleteUserSettingInfo] response error : ${response.e}")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::deleteUserSettingInfo] response error : ${response.e}")
                     }
 
                     else -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::deleteUserSettingInfo] response failed")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::deleteUserSettingInfo] response failed")
                     }
                 }
             }
@@ -587,16 +609,16 @@ class CarelevoPumpPlugin @Inject constructor(
     }
 
     override fun connect(reason: String) {
-        Log.d("plugin_test", "[CarelevoPumpPlugin::connect] connect called : $reason")
+        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::connect] connect called : $reason")
         _lastDateTime = System.currentTimeMillis()
     }
 
     override fun disconnect(reason: String) {
-        Log.d("plugin_test", "[CarelevoPumpPlugin::disconnect] disconnect called : $reason")
+        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::disconnect] disconnect called : $reason")
     }
 
     override fun stopConnecting() {
-        Log.d("plugin_test", "[CarelevoPumpPlugin::stopConnecting] stopConnecting called")
+        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::stopConnecting] stopConnecting called")
     }
 
     override fun getPumpStatus(reason: String) {
@@ -608,28 +630,28 @@ class CarelevoPumpPlugin @Inject constructor(
         }
 
         pluginDisposable += requestPatchInfusionInfoUseCase.execute()
-            .observeOn(aapsSchedulers.io)
+            .observeOn(aapsSchedulers.main)
             .subscribeOn(aapsSchedulers.io)
             .timeout(3000L, TimeUnit.MILLISECONDS)
             .subscribe { response ->
                 when (response) {
                     is ResponseResult.Success -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::getPumpState] response success")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::getPumpState] response success")
                     }
 
                     is ResponseResult.Error -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::getPumpState] response error : ${response.e}")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::getPumpState] response error : ${response.e}")
                     }
 
                     else -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::getPumpState] response failed")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::getPumpState] response failed")
                     }
                 }
             }
     }
 
     override fun setNewBasalProfile(profile: Profile): PumpEnactResult {
-        Log.d("plugin_test", "[CarelevoPumpPlugin::setNewBasalProfile] setNewBasalProfile timezoneOrDSTChanged called")
+        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::setNewBasalProfile] setNewBasalProfile timezoneOrDSTChanged called")
         _lastDateTime = System.currentTimeMillis()
         return when (carelevoPatch.getPatchState()) {
             is PatchState.ConnectedBooted -> {
@@ -673,7 +695,7 @@ class CarelevoPumpPlugin @Inject constructor(
             .doOnSuccess { response ->
                 when (response) {
                     is ResponseResult.Success -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::startUpdateBasal] response success")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::startUpdateBasal] response success")
                         carelevoPatch.setProfile(profile)
                         uiInteraction.addNotificationValidFor(Notification.PROFILE_SET_OK, rh.gs(app.aaps.core.ui.R.string.profile_set_ok), Notification.INFO, 60)
                         result.success = true
@@ -681,11 +703,11 @@ class CarelevoPumpPlugin @Inject constructor(
                     }
 
                     is ResponseResult.Error -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::startUpdateBasal] response error : ${response.e}")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPumpPlugin::startUpdateBasal] response error : ${response.e}")
                     }
 
                     else -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::startUpdateBasal] response failed")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPumpPlugin::startUpdateBasal] response failed")
                     }
                 }
             }.doOnError {
@@ -699,7 +721,7 @@ class CarelevoPumpPlugin @Inject constructor(
 
     override fun isThisProfileSet(profile: Profile): Boolean {
         val checkResult = carelevoPatch.checkIsSameProfile(profile)
-        Log.d("plugin_test", "[CarelevoPumpPlugin::isThisProfileSet] checkResult : $checkResult")
+        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::isThisProfileSet] checkResult : $checkResult")
         return checkResult
     }
 
@@ -710,7 +732,6 @@ class CarelevoPumpPlugin @Inject constructor(
     override val baseBasalRate: Double
         get() {
             return carelevoPatch.profile.value?.getOrNull()?.let {
-                Log.d("plugin_test", "[CarelevoPumpPlugin::baseBasalRate] baseBasalRate : ${it.getBasal()}")
                 it.getBasal()
             } ?: 0.0
         }
@@ -747,7 +768,7 @@ class CarelevoPumpPlugin @Inject constructor(
                 when (response) {
                     is ResponseResult.Success -> {
                         val responseResult = response.data as StartImmeBolusInfusionResponseModel
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::deliverTreatment] response success result : $responseResult")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::deliverTreatment] response success result : $responseResult")
                         _lastDateTime = System.currentTimeMillis()
 
                         val totalSec = responseResult.expectSec
@@ -780,11 +801,11 @@ class CarelevoPumpPlugin @Inject constructor(
                     }
 
                     is ResponseResult.Error -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::deliverTreatment] response error : ${response.e}")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPumpPlugin::deliverTreatment] response error : ${response.e}")
                     }
 
                     else -> {
-                        Log.d("plugin_test", "[CarlevoPumpPlugin::deliverTreatment] response failed")
+                        aapsLogger.error(LTag.PUMP, "[CarlevoPumpPlugin::deliverTreatment] response failed")
                     }
                 }
             }.doOnError {
@@ -805,15 +826,15 @@ class CarelevoPumpPlugin @Inject constructor(
             .subscribe { response ->
                 when (response) {
                     is ResponseResult.Success -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::handleFinishImmeBolus] response success")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::handleFinishImmeBolus] response success")
                     }
 
                     is ResponseResult.Error -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::handleFinishImmeBolus] response error : ${response.e}")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPumpPlugin::handleFinishImmeBolus] response error : ${response.e}")
                     }
 
                     else -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::handleFinishImmeBolus] response failed")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPumpPlugin::handleFinishImmeBolus] response failed")
                     }
                 }
             }
@@ -829,7 +850,7 @@ class CarelevoPumpPlugin @Inject constructor(
                 when (response) {
                     is ResponseResult.Success -> {
                         val result = response.data as CancelBolusInfusionResponseModel
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::stopBolusDelivering] response success result : $result")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::stopBolusDelivering] response success result : $result")
                         rxBus.send(EventOverviewBolusProgress.apply {
                             status = rh.gs(app.aaps.core.ui.R.string.bolus_delivered_successfully, result.infusedAmount.toFloat())
                         })
@@ -837,25 +858,24 @@ class CarelevoPumpPlugin @Inject constructor(
                     }
 
                     is ResponseResult.Error -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::stopBolusDelivering] response error : ${response.e}")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPumpPlugin::stopBolusDelivering] response error : ${response.e}")
                     }
 
                     else -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::stopBolusDelivering] response failed")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPumpPlugin::stopBolusDelivering] response failed")
                     }
                 }
             }
     }
 
     override fun setTempBasalAbsolute(absoluteRate: Double, durationInMinutes: Int, profile: Profile, enforceNew: Boolean, tbrType: PumpSync.TemporaryBasalType): PumpEnactResult {
-        Log.d("plugin_test", "[CarelevoPumpPlugin::setTempBasalAbsolute] setTempBasalAbsolute called")
         val result = instantiator.providePumpEnactResult()
         if (!carelevoPatch.isBluetoothEnabled()) {
-            Log.d("plugin_test", "[CarelevoPumpPlugin::setTempBasalAbsolute] bluetooth is not enabled")
+            aapsLogger.info(LTag.PUMP, "[CarelevoPumpPlugin::setTempBasalAbsolute] bluetooth is not enabled")
             return result
         }
         if (!carelevoPatch.isCarelevoConnected()) {
-            Log.d("plugin_test", "[CarelevoPumpPlugin::setTempBasalAbsolute] carelevo is not connected")
+            aapsLogger.info(LTag.PUMP, "[CarelevoPumpPlugin::setTempBasalAbsolute] carelevo is not connected")
             return result
         }
 
@@ -871,7 +891,7 @@ class CarelevoPumpPlugin @Inject constructor(
             .doOnSuccess { response ->
                 when (response) {
                     is ResponseResult.Success -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::setTempBasalAbsolute] response success")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::setTempBasalAbsolute] response success")
                         _lastDateTime = System.currentTimeMillis()
                         pumpSync.syncTemporaryBasalWithPumpId(
                             timestamp = dateUtil.now(),
@@ -892,11 +912,11 @@ class CarelevoPumpPlugin @Inject constructor(
                     }
 
                     is ResponseResult.Error -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::setTempBasalAbsolute] response error : ${response.e}")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPumpPlugin::setTempBasalAbsolute] response error : ${response.e}")
                     }
 
                     else -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::setTempBasalAbsolute] response failed")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPumpPlugin::setTempBasalAbsolute] response failed")
                     }
                 }
             }.doOnError {
@@ -910,13 +930,12 @@ class CarelevoPumpPlugin @Inject constructor(
 
     override fun setTempBasalPercent(percent: Int, durationInMinutes: Int, profile: Profile, enforceNew: Boolean, tbrType: PumpSync.TemporaryBasalType): PumpEnactResult {
         val result = instantiator.providePumpEnactResult()
-        Log.d("plugin_test", "[CarelevoPumpPlugin::setTempBasalPercent] setTempBasalPercent called")
         if (!carelevoPatch.isBluetoothEnabled()) {
-            Log.d("plugin_test", "[CarelevoPumpPlugin::setTempBasalPercent] bluetooth is not enabled")
+            aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::setTempBasalPercent] bluetooth is not enabled")
             return result
         }
         if (!carelevoPatch.isCarelevoConnected()) {
-            Log.d("plugin_test", "[CarelevoPumpPlugin::setTempBasalPercent] carelevo is not connected")
+            aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::setTempBasalPercent] carelevo is not connected")
             return result
         }
 
@@ -933,7 +952,7 @@ class CarelevoPumpPlugin @Inject constructor(
             .doOnSuccess { response ->
                 when (response) {
                     is ResponseResult.Success -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::setTempBasalPercent] response success")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::setTempBasalPercent] response success")
                         _lastDateTime = System.currentTimeMillis()
                         pumpSync.syncTemporaryBasalWithPumpId(
                             timestamp = dateUtil.now(),
@@ -954,11 +973,11 @@ class CarelevoPumpPlugin @Inject constructor(
                     }
 
                     is ResponseResult.Error -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::setTempBasalPercent] response error : ${response.e}")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPumpPlugin::setTempBasalPercent] response error : ${response.e}")
                     }
 
                     else -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::setTempBasalPercent] response failed")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPumpPlugin::setTempBasalPercent] response failed")
                     }
                 }
             }.doOnError {
@@ -985,7 +1004,7 @@ class CarelevoPumpPlugin @Inject constructor(
             .doOnSuccess { response ->
                 when (response) {
                     is ResponseResult.Success -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::cancelTempBasal] response success")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::cancelTempBasal] response success")
                         _lastDateTime = System.currentTimeMillis()
                         pumpSync.syncStopTemporaryBasalWithPumpId(
                             timestamp = dateUtil.now(),
@@ -999,11 +1018,11 @@ class CarelevoPumpPlugin @Inject constructor(
                     }
 
                     is ResponseResult.Error -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::cancelTempBasal] response error : ${response.e}")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPumpPlugin::cancelTempBasal] response error : ${response.e}")
                     }
 
                     else -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::cancelTempBasal] response failed")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPumpPlugin::cancelTempBasal] response failed")
                     }
                 }
             }.doOnError {
@@ -1036,7 +1055,7 @@ class CarelevoPumpPlugin @Inject constructor(
             .doOnSuccess { response ->
                 when (response) {
                     is ResponseResult.Success -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::setExtendedBolus] response success")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::setExtendedBolus] response success")
                         _lastDateTime = System.currentTimeMillis()
                         pumpSync.syncExtendedBolusWithPumpId(
                             timestamp = dateUtil.now(),
@@ -1052,11 +1071,11 @@ class CarelevoPumpPlugin @Inject constructor(
                     }
 
                     is ResponseResult.Error -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::setExtendedBolus] response error : ${response.e}")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPumpPlugin::setExtendedBolus] response error : ${response.e}")
                     }
 
                     else -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::setExtendedBolus] response failed")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPumpPlugin::setExtendedBolus] response failed")
                     }
                 }
             }.doOnError {
@@ -1083,7 +1102,7 @@ class CarelevoPumpPlugin @Inject constructor(
             .doOnSuccess { response ->
                 when (response) {
                     is ResponseResult.Success -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::cancelExtendedBolus] response success")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::cancelExtendedBolus] response success")
                         _lastDateTime = System.currentTimeMillis()
                         pumpSync.syncStopExtendedBolusWithPumpId(
                             timestamp = dateUtil.now(),
@@ -1097,11 +1116,11 @@ class CarelevoPumpPlugin @Inject constructor(
                     }
 
                     is ResponseResult.Error -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::cancelExtendedBolus] response error : ${response.e}")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPumpPlugin::cancelExtendedBolus] response error : ${response.e}")
                     }
 
                     else -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::cancelExtendedBolus] response failed")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPumpPlugin::cancelExtendedBolus] response failed")
                     }
                 }
             }.doOnError {
@@ -1190,17 +1209,16 @@ class CarelevoPumpPlugin @Inject constructor(
 
         val address = carelevoPatch.patchInfo.value?.getOrNull()?.address?.uppercase() ?: return
 
-
         reconnectDisposable += bleController.execute(Connect(address))
             .observeOn(aapsSchedulers.io)
             .subscribe { result ->
                 when (result) {
                     is CommandResult.Success -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::startReconnect] connect result is success")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::startReconnect] connect result is success")
                     }
 
                     else -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::startReconnect] connect result is failed")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPumpPlugin::startReconnect] connect result is failed")
                         stopReconnect()
                     }
                 }
@@ -1210,7 +1228,7 @@ class CarelevoPumpPlugin @Inject constructor(
             .observeOn(aapsSchedulers.io)
             .timeout(10000L, TimeUnit.MILLISECONDS)
             .doOnError {
-                Log.d("plugin_test", "[CarelevoPumpPlugin::startReconnect] reconnect time out : $it")
+                aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::startReconnect] reconnect time out : $it")
                 stopReconnect()
             }
             .subscribe { btState ->
@@ -1253,24 +1271,9 @@ class CarelevoPumpPlugin @Inject constructor(
         super.timezoneOrDSTChanged(timeChangeType)
         val insulin = carelevoPatch.patchInfo.value?.getOrNull()?.insulinRemain?.toInt() ?: 0
         pluginDisposable += carelevoPatchTimeZoneUpdateUseCase.execute(CarelevoPatchTimeZoneRequestModel(insulinAmount = insulin))
-            .observeOn(aapsSchedulers.io)
-            .subscribeOn(aapsSchedulers.main)
+            .observeOn(aapsSchedulers.main)
+            .subscribeOn(aapsSchedulers.io)
             .timeout(3000L, TimeUnit.MILLISECONDS)
-            .subscribe { response ->
-                when (response) {
-                    is ResponseResult.Success -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::timezoneOrDSTChanged] response success")
-                    }
-
-                    is ResponseResult.Error -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::timezoneOrDSTChanged] response error : ${response.e}")
-                    }
-
-                    else -> {
-                        Log.d("plugin_test", "[CarelevoPumpPlugin::timezoneOrDSTChanged] response failed")
-                    }
-                }
-            }
+            .subscribe()
     }
-
 }

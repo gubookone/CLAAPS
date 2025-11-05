@@ -1,7 +1,10 @@
 package info.nightscout.androidaps.plugins.pump.carelevo.ui.fragments
 
 import android.os.Bundle
+import android.util.Log
 import android.view.View
+import androidx.core.view.isVisible
+import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import app.aaps.core.ui.toast.ToastUtils
@@ -15,7 +18,6 @@ import info.nightscout.androidaps.plugins.pump.carelevo.ui.base.CarelevoBaseFrag
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.ext.repeatOnStartedWithViewOwner
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.ext.showDialogDiscardConfirm
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.model.CarelevoConnectSafetyCheckEvent
-import info.nightscout.androidaps.plugins.pump.carelevo.ui.type.CarelevoPatchStep
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoPatchConnectionFlowViewModel
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoPatchSafetyCheckViewModel
 
@@ -46,11 +48,32 @@ class CarelevoPatchSafetyCheckFragment : CarelevoBaseFragment<FragmentCarelevoPa
                 showDiscardConfirmDialog()
             }
 
-            btnNext.setOnClickListener {
+            btnSafetyCheck.setOnClickListener {
                 viewModel.startSafetyCheck()
             }
+
+            btnNext.setOnClickListener {
+                Log.d("connect_test", "[CarelevoSafetyCheckFragment::setupView] btnNext clicked")
+                //sharedViewModel.setPage(CarelevoPatchStep.PATCH_ATTACH)
+                setFragment(CarelevoPatchAttachFragment.getInstance())
+            }
+
+            btnRetry.setOnClickListener {
+                viewModel.retryAdditionalPriming()
+            }
+        }
+
+        if (viewModel.isSafetyCheckPassed()) {
+            handleSafetyCheckSuccess()
         }
     }
+
+    private fun setFragment(fragment: Fragment) = parentFragmentManager.beginTransaction()
+        .apply {
+            replace(R.id.container_fragment, fragment)
+                .addToBackStack(null)
+                .commit()
+        }
 
     private fun setupObserver() {
         repeatOnStartedWithViewOwner {
@@ -77,33 +100,54 @@ class CarelevoPatchSafetyCheckFragment : CarelevoBaseFragment<FragmentCarelevoPa
     private fun handleEvent(event: Event) {
         when (event) {
             is CarelevoConnectSafetyCheckEvent.ShowMessageBluetoothNotEnabled -> {
-                ToastUtils.infoToast(requireContext(), "블루투스 연결 상태를 확인해 주세요.")
+                ToastUtils.infoToast(
+                    requireContext(),
+                    getString(R.string.carelevo_toast_msg_bluetooth_not_enabled)
+                )
             }
 
             is CarelevoConnectSafetyCheckEvent.ShowMessageCarelevoIsNotConnected -> {
-                ToastUtils.infoToast(requireContext(), "연결된 패치가 없습니다.")
+                ToastUtils.infoToast(
+                    requireContext(),
+                    getString(R.string.carelevo_toast_msg_not_connected)
+                )
             }
 
             is CarelevoConnectSafetyCheckEvent.SafetyCheckComplete -> {
-                ToastUtils.infoToast(requireContext(), "안전점검 성공 했습니다.")
-                sharedViewModel.setPage(CarelevoPatchStep.PATCH_ATTACH)
+                ToastUtils.infoToast(
+                    requireContext(),
+                    getString(R.string.carelevo_toast_msg_safety_check_success)
+                )
+                handleSafetyCheckSuccess()
             }
 
             is CarelevoConnectSafetyCheckEvent.SafetyCheckFailed -> {
-                ToastUtils.infoToast(requireContext(), "인전점검 실패 했습니다.")
+                ToastUtils.infoToast(
+                    requireContext(),
+                    getString(R.string.carelevo_toast_msg_safety_check_failed)
+                )
             }
 
             is CarelevoConnectSafetyCheckEvent.DiscardComplete -> {
-                ToastUtils.infoToast(requireContext(), "사용종료 되었습니다.")
+                ToastUtils.infoToast(
+                    requireContext(),
+                    getString(R.string.carelevo_toast_msg_discard_complete)
+                )
                 requireActivity().finish()
             }
 
             is CarelevoConnectSafetyCheckEvent.DiscardFailed -> {
-                ToastUtils.infoToast(requireContext(), "사용 종료 실패했습니다. 다시 시도해 주세요.")
+                ToastUtils.infoToast(
+                    requireContext(),
+                    getString(R.string.carelevo_toast_msg_discard_failed)
+                )
             }
-
-            else -> Unit
         }
+    }
+
+    private fun handleSafetyCheckSuccess() {
+        binding.btnNext.isVisible = true
+        binding.layoutRetry.isVisible = true
     }
 
     private fun showDiscardConfirmDialog() {
