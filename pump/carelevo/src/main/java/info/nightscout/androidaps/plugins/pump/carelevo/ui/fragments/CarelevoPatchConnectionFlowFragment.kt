@@ -29,6 +29,8 @@ class CarelevoPatchConnectionFlowFragment : CarelevoBaseFragment<FragmentCarelev
 
     private val viewModel: CarelevoPatchConnectionFlowViewModel by activityViewModels { viewModelFactory }
 
+    private var lastStep: CarelevoPatchStep? = null
+
     private lateinit var onBackPressCallback: OnBackPressedCallback
 
     override fun onAttach(context: Context) {
@@ -58,17 +60,19 @@ class CarelevoPatchConnectionFlowFragment : CarelevoBaseFragment<FragmentCarelev
 
     private fun setupObserver() {
         repeatOnStartedWithViewOwner {
-            viewModel.page.collect {
-                val (currentFragment, title) = when (it) {
+            viewModel.page.collect { step ->
+                if (step == lastStep) return@collect
+                lastStep = step
+                val (currentFragment, title) = when (step) {
                     CarelevoPatchStep.PATCH_START -> CarelevoPatchStartFragment.getInstance() to requireContext().getString(R.string.carelevo_connect_prepare_title)
                     CarelevoPatchStep.PATCH_CONNECT -> CarelevoPatchConnectFragment.getInstance() to requireContext().getString(R.string.carelevo_connect_patch_title)
                     CarelevoPatchStep.SAFETY_CHECK -> CarelevoPatchSafetyCheckFragment.getInstance() to requireContext().getString(R.string.carelevo_connect_safety_check_title)
                     CarelevoPatchStep.PATCH_ATTACH -> CarelevoPatchAttachFragment.getInstance() to requireContext().getString(R.string.carelevo_connect_patch_attach_title)
                     CarelevoPatchStep.NEEDLE_INSERTION -> CarelevoPatchCannulaInsertionFragment.getInstance() to requireContext().getString(R.string.carelevo_connect_cannula_check_title)
                 }
-                setFragment(currentFragment)
+                setFragmentIfChanged(currentFragment)
                 binding.tvTitle.text = title
-                binding.tvStep.text = requireContext().getString(R.string.common_unit_step_format, it.ordinal + 1, CarelevoPatchStep.entries.size)
+                binding.tvStep.text = requireContext().getString(R.string.common_unit_step_format, step.ordinal + 1, CarelevoPatchStep.entries.size)
             }
         }
 
@@ -108,12 +112,16 @@ class CarelevoPatchConnectionFlowFragment : CarelevoBaseFragment<FragmentCarelev
         }
     }
 
-    private fun setFragment(fragment: Fragment) = childFragmentManager.beginTransaction()
-        .apply {
-            replace(R.id.container_fragment, fragment)
-                .addToBackStack(null)
-                .commit()
-        }
+    private fun setFragmentIfChanged(f: Fragment, tag: String = f::class.java.name) {
+        val fm = childFragmentManager
+        val current = fm.findFragmentById(R.id.container)
+        if (current?.javaClass == f.javaClass) return  // 이미 같은 화면이면 교체 X
+
+        fm.beginTransaction()
+            .setReorderingAllowed(true)
+            .replace(R.id.container_fragment, f, tag)
+            .commit()
+    }
 
     private fun onBackPressed() {
         showDialogDiscardConfirm(

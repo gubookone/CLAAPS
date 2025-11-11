@@ -15,9 +15,12 @@ import info.nightscout.androidaps.plugins.pump.carelevo.common.model.UiState
 import info.nightscout.androidaps.plugins.pump.carelevo.databinding.FragmentCarelevoPatchSafetyCheckBinding
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.base.CarelevoBaseCircleProgress
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.base.CarelevoBaseFragment
+import info.nightscout.androidaps.plugins.pump.carelevo.ui.binding.setProgressFractionText
+import info.nightscout.androidaps.plugins.pump.carelevo.ui.binding.setRemainTimeText
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.ext.repeatOnStartedWithViewOwner
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.ext.showDialogDiscardConfirm
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.model.CarelevoConnectSafetyCheckEvent
+import info.nightscout.androidaps.plugins.pump.carelevo.ui.type.CarelevoPatchStep
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoPatchConnectionFlowViewModel
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoPatchSafetyCheckViewModel
 
@@ -54,8 +57,8 @@ class CarelevoPatchSafetyCheckFragment : CarelevoBaseFragment<FragmentCarelevoPa
 
             btnNext.setOnClickListener {
                 Log.d("connect_test", "[CarelevoSafetyCheckFragment::setupView] btnNext clicked")
-                //sharedViewModel.setPage(CarelevoPatchStep.PATCH_ATTACH)
-                setFragment(CarelevoPatchAttachFragment.getInstance())
+                sharedViewModel.setPage(CarelevoPatchStep.PATCH_ATTACH)
+                //setFragment(CarelevoPatchAttachFragment.getInstance())
             }
 
             btnRetry.setOnClickListener {
@@ -87,6 +90,27 @@ class CarelevoPatchSafetyCheckFragment : CarelevoBaseFragment<FragmentCarelevoPa
                 handleState(it)
             }
         }
+
+        repeatOnStartedWithViewOwner {
+            viewModel.progress.collect {
+                handleProgress(it)
+            }
+        }
+
+        repeatOnStartedWithViewOwner {
+            viewModel.remainSec.collect {
+                handleRemainSec(it)
+            }
+        }
+    }
+
+    private fun handleProgress(value: Int?) {
+        binding.progressbarPatchSafetyCheck.progress = value ?: 0
+        binding.tvPercent.setProgressFractionText(value)
+    }
+
+    private fun handleRemainSec(value: Long?) {
+        binding.tvRemainTime.setRemainTimeText(value)
     }
 
     private fun handleState(state: State) {
@@ -111,6 +135,10 @@ class CarelevoPatchSafetyCheckFragment : CarelevoBaseFragment<FragmentCarelevoPa
                     requireContext(),
                     getString(R.string.carelevo_toast_msg_not_connected)
                 )
+            }
+
+            is CarelevoConnectSafetyCheckEvent.SafetyCheckProgress -> {
+                handleSafetyCheckProgress()
             }
 
             is CarelevoConnectSafetyCheckEvent.SafetyCheckComplete -> {
@@ -145,9 +173,18 @@ class CarelevoPatchSafetyCheckFragment : CarelevoBaseFragment<FragmentCarelevoPa
         }
     }
 
+    private fun handleSafetyCheckProgress() {
+        binding.btnNext.isVisible = true
+        binding.btnSafetyCheck.isVisible = false
+        binding.layoutRetry.isVisible = false
+        binding.btnNext.isEnabled = false
+    }
+
     private fun handleSafetyCheckSuccess() {
         binding.btnNext.isVisible = true
+        binding.btnSafetyCheck.isVisible = false
         binding.layoutRetry.isVisible = true
+        binding.btnNext.isEnabled = true
     }
 
     private fun showDiscardConfirmDialog() {

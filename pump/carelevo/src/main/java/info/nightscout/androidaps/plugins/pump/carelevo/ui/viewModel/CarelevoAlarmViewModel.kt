@@ -265,12 +265,12 @@ class CarelevoAlarmViewModel @Inject constructor(
                 .observeOn(aapsSchedulers.io)
                 .subscribeOn(aapsSchedulers.io)
                 .doOnError {
-                    aapsLogger.debug(LTag.PUMP, "[startInfusionResumeProcess::startPumpResume] doOnError called : $it")
+                    aapsLogger.debug(LTag.PUMP, "[AlarmViewModel::startPumpResume] doOnError called : $it")
                 }
                 .subscribe { response ->
                     when (response) {
                         is ResponseResult.Success -> {
-                            aapsLogger.debug(LTag.PUMP, "[startInfusionResumeProcess::startPumpResume] response success")
+                            aapsLogger.debug(LTag.PUMP, "[AlarmViewModel::startPumpResume] response success")
                             pumpSync.syncStopTemporaryBasalWithPumpId(
                                 timestamp = dateUtil.now(),
                                 endPumpId = dateUtil.now(),
@@ -282,7 +282,7 @@ class CarelevoAlarmViewModel @Inject constructor(
                         is ResponseResult.Failure -> {}
 
                         is ResponseResult.Error -> {
-                            aapsLogger.debug(LTag.PUMP, "[startInfusionResumeProcess::startPumpResume] response failed: ${response.e.message}")
+                            aapsLogger.debug(LTag.PUMP, "[AlarmViewModel::startPumpResume] response failed: ${response.e.message}")
                         }
                     }
                 }
@@ -298,21 +298,25 @@ class CarelevoAlarmViewModel @Inject constructor(
                 .observeOn(aapsSchedulers.main)
                 .subscribe(
                     { result ->
-                        Log.d("AlarmVM", "Disconnect success: $result")
+                        Log.d("AlarmVM", "[AlarmViewModel::startAlarmClearPatchForceQuitProcess] result : $result")
                         bleController.unBondDevice()
                         carelevoPatch.flushPatchInformation()
                         clearAllAlarms()
                     }, { e ->
                         Log.e("AlarmVM", "Disconnect failed", e)
                     })
+        } ?: run {
+            bleController.unBondDevice()
+            carelevoPatch.flushPatchInformation()
+            clearAllAlarms()
         }
     }
 
     fun acknowledgeAndRemoveAlarm(alarmId: String) {
-        _alarmQueue.value = _alarmQueue.value.toMutableList().apply {
+        _alarmQueue.value = alarmQueue.value.toMutableList().apply {
             removeAll { it.alarmId == alarmId }
         }
-        if (_alarmQueue.value.isEmpty()) {
+        if (alarmQueue.value.isEmpty()) {
             viewModelScope.launch {
                 _alarmQueueEmptyEvent.emit(Unit)
             }
@@ -326,12 +330,12 @@ class CarelevoAlarmViewModel @Inject constructor(
                 .subscribe { result ->
                     when (result) {
                         is CommandResult.Success -> {
-                            Log.d("connect_test", "[CarelevoCommunicationCheckViewModel::startReconnect] connect result success")
+                            Log.d("connect_test", "[AlarmViewModel::startReconnect] connect result success")
                             acknowledgeAndRemoveAlarm(alarmId)
                         }
 
                         else -> {
-                            Log.d("connect_test", "[CarelevoCommunicationCheckViewModel::startReconnect] connect result failed")
+                            Log.d("connect_test", "[AlarmViewModel::startReconnect] connect result failed")
                         }
                     }
                 }
@@ -346,10 +350,10 @@ class CarelevoAlarmViewModel @Inject constructor(
                 {
                     _alarmQueue.value = emptyList()
                     val ok = _alarmQueueEmptyEvent.tryEmit(Unit)
-                    Log.d("AlarmVM", "emit empty event: $ok")
+                    Log.d("AlarmVM", "[AlarmViewModel::clearAllAlarms] emit empty event: $ok")
                 },
                 { e ->
-                    Log.e("AlarmVM", "clearAllAlarms error", e)
+                    Log.e("AlarmVM", "[AlarmViewModel::clearAllAlarms] clearAllAlarms error", e)
                 })
     }
 }

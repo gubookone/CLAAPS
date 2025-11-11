@@ -108,6 +108,7 @@ class CarelevoPatchCannulaInsertionViewModel @Inject constructor(
                 val failedCount = patchInfo.needleFailedCount ?: 0
                 if (failedCount >= 3) {
                     recordNeedleInsertFailAlarm()
+                    triggerEvent(CarelevoConnectCannulaEvent.CheckCannulaFailed(failedCount))
                 }
             }
     }
@@ -138,22 +139,28 @@ class CarelevoPatchCannulaInsertionViewModel @Inject constructor(
                         val result = response.data
                         Log.d("connect_test", "[CarelevoConnectCannulaViewModel::startCheckCannula] response success result ==> $result")
                         setUiState(UiState.Idle)
-                        if (result is ResultSuccess) {
-                            triggerEvent(CarelevoConnectCannulaEvent.CheckCannulaComplete(true))
-                        } else if (result is ResultFailed) {
-                            val failedCount = carelevoPatch.patchInfo.value?.getOrNull()?.needleFailedCount ?: return@subscribe
-                            triggerEvent(CarelevoConnectCannulaEvent.CheckCannulaFailed(failedCount))
+                        when (result) {
+                            is ResultSuccess -> {
+                                triggerEvent(CarelevoConnectCannulaEvent.CheckCannulaComplete(true))
+                            }
+
+                            is ResultFailed -> {
+                                val failedCount = carelevoPatch.patchInfo.value?.getOrNull()?.needleFailedCount ?: return@subscribe
+                                triggerEvent(CarelevoConnectCannulaEvent.CheckCannulaFailed(failedCount))
+                            }
+
+                            else -> Unit
                         }
                     }
 
-                    is ResponseResult.Error   -> {
+                    is ResponseResult.Error -> {
                         Log.d("connect_test", "[CarelevoConnectCannulaViewModel::startCheckCannula] response error : ${response.e}")
                         setUiState(UiState.Idle)
                         val failedCount = carelevoPatch.patchInfo.value?.getOrNull()?.needleFailedCount ?: return@subscribe
                         triggerEvent(CarelevoConnectCannulaEvent.CheckCannulaFailed(failedCount))
                     }
 
-                    else                      -> {
+                    else -> {
                         Log.d("connect_test", "[CarelevoConnectCannulaViewModel::startCheckCannula] response failed")
                         setUiState(UiState.Idle)
                         val failedCount = carelevoPatch.patchInfo.value?.getOrNull()?.needleFailedCount ?: return@subscribe
@@ -201,13 +208,13 @@ class CarelevoPatchCannulaInsertionViewModel @Inject constructor(
                             triggerEvent(CarelevoConnectCannulaEvent.SetBasalComplete)
                         }
 
-                        is ResponseResult.Error   -> {
+                        is ResponseResult.Error -> {
                             Log.d("connect_test", "[CarelevoConnectCannulaViewModel::startSetBasal] response error : ${response.e}")
                             setUiState(UiState.Idle)
                             triggerEvent(CarelevoConnectCannulaEvent.SetBasalFailed)
                         }
 
-                        else                      -> {
+                        else -> {
                             Log.d("connect_test", "[CarelevoConnectCannulaViewModel::startSetBasal] response failed")
                             setUiState(UiState.Idle)
                             triggerEvent(CarelevoConnectCannulaEvent.SetBasalFailed)
@@ -247,13 +254,13 @@ class CarelevoPatchCannulaInsertionViewModel @Inject constructor(
                         triggerEvent(CarelevoConnectCannulaEvent.DiscardComplete)
                     }
 
-                    is ResponseResult.Error   -> {
+                    is ResponseResult.Error -> {
                         Log.d("connect_test", "[CarelevoConnectCannulaViewModel::startDiscard] response error : ${response.e}")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectCannulaEvent.DiscardFailed)
                     }
 
-                    else                      -> {
+                    else -> {
                         Log.d("connect_test", "[CarelevoConnectCannulaViewModel::startDiscard] response failed")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectCannulaEvent.DiscardFailed)
@@ -282,13 +289,13 @@ class CarelevoPatchCannulaInsertionViewModel @Inject constructor(
                         triggerEvent(CarelevoConnectCannulaEvent.DiscardComplete)
                     }
 
-                    is ResponseResult.Error   -> {
+                    is ResponseResult.Error -> {
                         Log.d("connect_test", "[CarelevoConnectCannulaViewModel::startForceDiscard] response error : ${response.e}")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectCannulaEvent.DiscardFailed)
                     }
 
-                    else                      -> {
+                    else -> {
                         Log.d("connect_test", "[CarelevoConnectCannulaViewModel::startForceDiscard] response failed")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectCannulaEvent.DiscardFailed)

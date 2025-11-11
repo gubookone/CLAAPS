@@ -593,11 +593,12 @@ class CarelevoPumpPlugin @Inject constructor(
     }
 
     override fun isConnected(): Boolean {
-        return if (!carelevoPatch.isCarelevoConnected()) {
-            carelevoPatch.isWorking
-        } else {
-            true
-        }
+        val connected = carelevoPatch.isCarelevoConnected()
+        val working = carelevoPatch.isWorking
+
+        val result = connected || working
+        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::isConnected] connected=$connected, working=$working, result=$result")
+        return result
     }
 
     override fun isConnecting(): Boolean {

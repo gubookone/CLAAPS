@@ -50,6 +50,34 @@
             app:layout_constraintTop_toBottomOf="@id/tv_desc"
             tools:text="안전점검 후 인슐린 방울이 맺혔는지 확인해 주세요." />
 
+        <ProgressBar
+            android:id="@+id/progressbar_patch_safety_check"
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="10dp"
+            android:layout_marginTop="20dp"
+            android:max="100"
+            app:layout_constraintTop_toBottomOf="@+id/tv_desc_warning"
+            tools:progress="20" />
+
+        <TextView
+            android:id="@+id/tv_remain_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/progressbar_patch_safety_check"
+            app:layout_constraintStart_toStartOf="parent"
+            tools:text="3분 07초 남음" />
+
+        <TextView
+            android:id="@+id/tv_percent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/progressbar_patch_safety_check"
+            app:layout_constraintEnd_toEndOf="parent"
+            tools:text="50/100" />
+
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/layout_retry"
             android:layout_width="match_parent"
@@ -85,19 +113,21 @@
             android:padding="16dp"
             app:layout_constraintBottom_toBottomOf="parent">
 
-            <Button
+            <app.aaps.core.ui.elements.SingleClickButton
                 android:id="@+id/btn_discard"
+                style="@style/ButtonMediumFontStyle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
+                android:layout_marginEnd="4dp"
                 android:text="@string/carelevo_btn_patch_expiration"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toStartOf="@+id/btn_safety_check"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
-            <Button
+            <app.aaps.core.ui.elements.SingleClickButton
                 android:id="@+id/btn_safety_check"
+                style="@style/ButtonMediumFontStyle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:text="@string/carelevo_btn_safety_check"
@@ -106,16 +136,19 @@
                 app:layout_constraintStart_toEndOf="@+id/btn_discard"
                 app:layout_constraintTop_toTopOf="parent" />
 
-            <Button
+            <app.aaps.core.ui.elements.SingleClickButton
                 android:id="@+id/btn_next"
+                style="@style/ButtonMediumFontStyle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:text="@string/carelevo_btn_next"
+                android:layout_marginStart="4dp"
                 android:visibility="gone"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toEndOf="@+id/btn_safety_check"
-                app:layout_constraintTop_toTopOf="parent" />
+                app:layout_constraintTop_toTopOf="parent"
+                tools:visibility="visible" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 

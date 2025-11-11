@@ -51,6 +51,7 @@ sealed class CarelevoConnectSafetyCheckEvent : Event {
     data object NoAction : CarelevoConnectSafetyCheckEvent()
     data object ShowMessageBluetoothNotEnabled : CarelevoConnectSafetyCheckEvent()
     data object ShowMessageCarelevoIsNotConnected : CarelevoConnectSafetyCheckEvent()
+    data object SafetyCheckProgress : CarelevoConnectSafetyCheckEvent()
     data object SafetyCheckComplete : CarelevoConnectSafetyCheckEvent()
     data object SafetyCheckFailed : CarelevoConnectSafetyCheckEvent()
     data object DiscardComplete : CarelevoConnectSafetyCheckEvent()

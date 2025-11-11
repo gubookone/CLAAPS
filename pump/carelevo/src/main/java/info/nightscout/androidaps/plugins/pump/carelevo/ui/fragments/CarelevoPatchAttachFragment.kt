@@ -7,6 +7,7 @@ import androidx.fragment.app.activityViewModels
 import info.nightscout.androidaps.plugins.pump.carelevo.R
 import info.nightscout.androidaps.plugins.pump.carelevo.databinding.FragmentCarelevoPatchAttachBinding
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.base.CarelevoBaseFragment
+import info.nightscout.androidaps.plugins.pump.carelevo.ui.type.CarelevoPatchStep
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoPatchConnectionFlowViewModel
 
 class CarelevoPatchAttachFragment : CarelevoBaseFragment<FragmentCarelevoPatchAttachBinding>(R.layout.fragment_carelevo_patch_attach) {
@@ -26,7 +27,8 @@ class CarelevoPatchAttachFragment : CarelevoBaseFragment<FragmentCarelevoPatchAt
 
     override fun setupView() {
         binding.btnNext.setOnClickListener {
-            setFragment(CarelevoPatchCannulaInsertionFragment.getInstance())
+            sharedViewModel.setPage(CarelevoPatchStep.NEEDLE_INSERTION)
+            //setFragment(CarelevoPatchCannulaInsertionFragment.getInstance())
         }
     }
 

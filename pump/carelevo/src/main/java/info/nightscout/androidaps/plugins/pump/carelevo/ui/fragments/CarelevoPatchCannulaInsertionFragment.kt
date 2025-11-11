@@ -100,6 +100,9 @@ class CarelevoPatchCannulaInsertionFragment : CarelevoBaseFragment<FragmentCarel
             }
 
             is CarelevoConnectCannulaEvent.CheckCannulaFailed -> {
+                if (event.failedCount >= 3) {
+                    activityFinish()
+                }
                 ToastUtils.infoToast(requireContext(), getString(R.string.carelevo_toast_msg_cannula_check_failed))
             }
 

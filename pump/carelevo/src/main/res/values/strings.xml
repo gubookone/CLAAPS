@@ -57,6 +57,7 @@
     <string name="common_unit_sec_value">%d초</string>
     <string name="common_unit_step_format">%1$d/%2$d</string>
     <string name="common_unit_value_day_hour_min">%1$d일 %2$02d:%3$02d</string>
+    <string name="common_unit_remain_min_sec">%d분 %02d초 남음</string>
 
 
     <string name="carelevo_state_none_value">No Connection</string>

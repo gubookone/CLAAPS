@@ -41,7 +41,7 @@ class CarelevoPatchStartFragment : CarelevoBaseFragment<FragmentCarelevoPatchSta
             btnDiscard.setOnClickListener {
                 showDialogDiscardConfirm(
                     positiveCallback = {
-                        //viewModel.startPatchDiscardProcess()
+                        requireActivity().finish()
                     })
             }
 

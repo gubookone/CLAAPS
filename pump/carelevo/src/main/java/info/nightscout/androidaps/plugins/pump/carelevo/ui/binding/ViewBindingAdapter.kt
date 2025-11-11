@@ -2,6 +2,7 @@ package info.nightscout.androidaps.plugins.pump.carelevo.ui.binding
 
 import android.util.Log
 import android.widget.Button
+import android.widget.TextView
 import androidx.core.view.isVisible
 import androidx.databinding.BindingAdapter
 import info.nightscout.androidaps.plugins.pump.carelevo.R
@@ -39,4 +40,21 @@ fun Button.bindResumButtonState(state: PatchState?, isPump: Boolean) {
     val btnName = if (isPump) context.getString(R.string.carelevo_overview_pump_resume_btn_label) else context.getString(R.string.carelevo_overview_pump_stop_btn_label)
     text = btnName
     isVisible = state != PatchState.NotConnectedNotBooting
+}
+
+@BindingAdapter("remainTimeText")
+fun TextView.setRemainTimeText(remainSeconds: Long?) {
+    remainSeconds ?: return
+
+    isVisible = true
+    val minutes = remainSeconds / 60
+    val seconds = remainSeconds % 60
+    text = String.format(context.getString(R.string.common_unit_remain_min_sec), minutes, seconds)
+}
+
+@BindingAdapter("progressFractionText")
+fun TextView.setProgressFractionText(progress: Int?) {
+    progress ?: return
+    isVisible = true
+    text = "$progress/100"
 }

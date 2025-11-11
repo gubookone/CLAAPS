@@ -697,6 +697,9 @@ class CarelevoOverviewViewModel @Inject constructor(
         _runningRemainMinutes.value = 0
         _tempBasalRate.value = null
         _basalRate.value = 0.0
+        _immeBolusRate.value = null
+        _extendBolusRate.value = null
+        _bolusTimeRange.value = null
     }
 
     private fun getRemainMin(createdAt: LocalDateTime): Int {

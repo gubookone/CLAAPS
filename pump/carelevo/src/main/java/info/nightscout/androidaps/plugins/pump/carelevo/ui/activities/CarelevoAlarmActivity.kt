@@ -90,8 +90,9 @@ class CarelevoAlarmActivity : TranslatedDaggerAppCompatActivity() {
         val desc = buildDescription(descRes, descArgs)
 
         CarelevoAlarmDialog.Builder()
-            .setTitle("${getString(titleRes)}(${alarm.createdAt})")
+            .setTitle(getString(titleRes))
             .setContent(desc)
+            .setAlarmInfo(alarm)
             .setPrimaryButton(
                 CarelevoAlarmDialog.Button(
                     text = getString(btnRes),
