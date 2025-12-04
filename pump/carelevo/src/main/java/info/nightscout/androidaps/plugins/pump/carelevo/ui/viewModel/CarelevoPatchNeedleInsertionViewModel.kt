@@ -99,7 +99,7 @@ class CarelevoPatchNeedleInsertionViewModel @Inject constructor(
 
     fun observePatchInfo() {
         compositeDisposable += carelevoPatch.patchInfo
-            .observeOn(aapsSchedulers.io)
+            .observeOn(aapsSchedulers.main)
             .subscribeOn(aapsSchedulers.io)
             .subscribe {
                 val patchInfo = it?.getOrNull() ?: return@subscribe
@@ -311,6 +311,8 @@ class CarelevoPatchNeedleInsertionViewModel @Inject constructor(
                 { e -> Log.e("alarm", "upsert error", e) }
             )
     }
+
+    fun needleFailCount() = carelevoPatch.patchInfo.value?.getOrNull()?.needleFailedCount
 
     override fun onCleared() {
         compositeDisposable.clear()

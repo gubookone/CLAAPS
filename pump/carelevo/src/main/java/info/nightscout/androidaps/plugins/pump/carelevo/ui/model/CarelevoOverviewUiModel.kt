@@ -4,7 +4,7 @@ data class CarelevoOverviewUiModel(
     val serialNumber: String,
     val lotNumber: String,
     val bootDateTimeUi: String,
-    val expirationTime: Int?,     // 타입은 실제에 맞게
+    val expirationTime: String,     // 타입은 실제에 맞게
     val infusionStatus: Int?,
     val insulinRemainText: String,
     val totalBasal: Double,

@@ -1,8 +1,9 @@
 package info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.aaps.core.interfaces.logging.AAPSLogger
+import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.rx.AapsSchedulers
 import info.nightscout.androidaps.plugins.pump.carelevo.ble.core.CarelevoBleController
 import info.nightscout.androidaps.plugins.pump.carelevo.common.CarelevoPatch
@@ -34,6 +35,7 @@ import kotlin.jvm.optionals.getOrNull
 
 class CarelevoPatchSafetyCheckViewModel @Inject constructor(
     private val aapsSchedulers: AapsSchedulers,
+    private val aapsLogger: AAPSLogger,
     private val bleController: CarelevoBleController,
     private val carelevoPatch: CarelevoPatch,
     private val patchSafetyCheckUseCase: CarelevoPatchSafetyCheckUseCase,
@@ -63,8 +65,6 @@ class CarelevoPatchSafetyCheckViewModel @Inject constructor(
     private var tickerDisposable: Disposable? = null
     private var currentTimeoutSec: Long = 0L
     private val timeTickerDisposable = CompositeDisposable()
-    private val successSignal = PublishSubject.create<Unit>()
-    private var completed = AtomicBoolean(false)
 
     fun setIsCreated(isCreated: Boolean) {
         _isCreated = isCreated
@@ -121,7 +121,7 @@ class CarelevoPatchSafetyCheckViewModel @Inject constructor(
             .subscribe { response ->
                 when (response) {
                     is SafetyProgress.Progress -> {
-                        Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::startSafetyCheck] response SafetyProgress.Progress - ${response.timeoutSec}")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoConnectSafetyCheckViewModel::startSafetyCheck] response SafetyProgress.Progress - ${response.timeoutSec}")
                         currentTimeoutSec = maxOf(1L, response.timeoutSec) // 0 방지
                         _progress.value = 0
                         _remainSec.value = currentTimeoutSec
@@ -129,7 +129,7 @@ class CarelevoPatchSafetyCheckViewModel @Inject constructor(
                     }
 
                     is SafetyProgress.Success -> {
-                        Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::startSafetyCheck] response SafetyProgress.Success")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoConnectSafetyCheckViewModel::startSafetyCheck] response SafetyProgress.Success")
                         stopTicker()
                         _progress.value = 100
                         _remainSec.value = 0
@@ -138,7 +138,7 @@ class CarelevoPatchSafetyCheckViewModel @Inject constructor(
                     }
 
                     is SafetyProgress.Error -> {
-                        Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::startSafetyCheck] response SafetyProgress.Error")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoConnectSafetyCheckViewModel::startSafetyCheck] response SafetyProgress.Error")
                         triggerEvent(CarelevoConnectSafetyCheckEvent.SafetyCheckFailed)
                     }
                 }
@@ -146,29 +146,22 @@ class CarelevoPatchSafetyCheckViewModel @Inject constructor(
     }
 
     private fun startTicker(sec: Long) {
-        val timeoutSec = sec - 30
+        val timeoutSec = sec - 30 // 예상 시간에서 30초 더해서 오기 때문에 UI에선 그대로 보여주기 위해 30초 빼줌
         stopTicker()
-        completed.set(false)
-        tickerDisposable?.dispose()
-        tickerDisposable = Observable.intervalRange(0, timeoutSec + 1, 0, 1, TimeUnit.SECONDS) // 예상 시간에서 30초 더해서 오기 때문에 UI에선 그대로 보여주기 위해 30초 빼줌
-            .takeUntil(successSignal)
+
+        tickerDisposable = Observable.intervalRange(0, timeoutSec + 1, 0, 1, TimeUnit.SECONDS)
             .observeOn(aapsSchedulers.main)
             .subscribe { tick ->
-                if (completed.get()) return@subscribe // ✅ 성공 이후 방어
-
                 val percent = ((tick.toDouble() / timeoutSec) * 100.0)
                     .coerceIn(0.0, 100.0)
                     .toInt()
 
-                // 혹시 뒤늦은 틱이 100을 낮춰 쓰는 걸 방지
-                val current = progress.value ?: 0
-                _progress.value = maxOf(current, percent)
+                _progress.value = maxOf(_progress.value ?: 0, percent)
+                _remainSec.value = (timeoutSec - tick).coerceAtLeast(0)
 
-                val remain = (timeoutSec - tick).coerceAtLeast(0)
-                _remainSec.value = remain
-
-                Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::startTicker] percent: $percent, remain: $remain")
+                aapsLogger.debug(LTag.UI, "percent: $percent, remain: ${_remainSec.value}")
             }
+
         tickerDisposable?.let(timeTickerDisposable::add)
     }
 
@@ -200,13 +193,13 @@ class CarelevoPatchSafetyCheckViewModel @Inject constructor(
             .subscribeOn(aapsSchedulers.io)
             .observeOn(aapsSchedulers.main)
             .doOnError {
-                Log.d("connect_test", "[CarelevoSafetyCheckViewModel::startDiscard] doOnError called : $it")
+                aapsLogger.error(LTag.PUMP, "[CarelevoSafetyCheckViewModel::startDiscard] doOnError called : $it")
                 setUiState(UiState.Idle)
                 triggerEvent(CarelevoConnectSafetyCheckEvent.DiscardFailed)
             }.subscribe { response ->
                 when (response) {
                     is ResponseResult.Success -> {
-                        Log.d("connect_test", "[CarelevoSafetyCheckViewModel::startDiscard] response success")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoSafetyCheckViewModel::startDiscard] response success")
                         bleController.unBondDevice()
                         carelevoPatch.releasePatch()
                         setUiState(UiState.Idle)
@@ -214,13 +207,13 @@ class CarelevoPatchSafetyCheckViewModel @Inject constructor(
                     }
 
                     is ResponseResult.Error -> {
-                        Log.d("connect_test", "[CarelevoSafetyCheckViewModel::startDiscard] response error : ${response.e}")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoSafetyCheckViewModel::startDiscard] response error : ${response.e}")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectSafetyCheckEvent.DiscardFailed)
                     }
 
                     else -> {
-                        Log.d("connect_test", "[CarelevoSafetyCheckViewModel::startDiscard] response failed")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoSafetyCheckViewModel::startDiscard] response failed")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectSafetyCheckEvent.DiscardFailed)
                     }
@@ -235,13 +228,13 @@ class CarelevoPatchSafetyCheckViewModel @Inject constructor(
             .subscribeOn(aapsSchedulers.io)
             .observeOn(aapsSchedulers.main)
             .doOnError {
-                Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::startForceDiscard] doOnError called : $it")
+                aapsLogger.error(LTag.PUMP, "[CarelevoConnectSafetyCheckViewModel::startForceDiscard] doOnError called : $it")
                 setUiState(UiState.Idle)
                 triggerEvent(CarelevoConnectSafetyCheckEvent.DiscardFailed)
             }.subscribe { response ->
                 when (response) {
                     is ResponseResult.Success -> {
-                        Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::startForceDiscard] response success")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoConnectSafetyCheckViewModel::startForceDiscard] response success")
                         bleController.unBondDevice()
                         carelevoPatch.releasePatch()
                         setUiState(UiState.Idle)
@@ -249,13 +242,13 @@ class CarelevoPatchSafetyCheckViewModel @Inject constructor(
                     }
 
                     is ResponseResult.Error -> {
-                        Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::startForceDiscard] response error : ${response.e}")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoConnectSafetyCheckViewModel::startForceDiscard] response error : ${response.e}")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectSafetyCheckEvent.DiscardFailed)
                     }
 
                     else -> {
-                        Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::startFoeceDiscard] response failed")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoConnectSafetyCheckViewModel::startFoeceDiscard] response failed")
                         setUiState(UiState.Idle)
                         triggerEvent(CarelevoConnectSafetyCheckEvent.DiscardFailed)
                     }
@@ -280,21 +273,21 @@ class CarelevoPatchSafetyCheckViewModel @Inject constructor(
             .subscribeOn(aapsSchedulers.io)
             .observeOn(aapsSchedulers.main)
             .doOnError {
-                Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::retryAdditionalPriming] doOnError called : $it")
+                aapsLogger.error(LTag.PUMP, "[CarelevoConnectSafetyCheckViewModel::retryAdditionalPriming] doOnError called : $it")
                 setUiState(UiState.Idle)
                 triggerEvent(CarelevoConnectSafetyCheckEvent.DiscardFailed)
             }.subscribe { response ->
                 when (response) {
                     is ResponseResult.Success -> {
-                        Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::retryAdditionalPriming] response success")
+                        aapsLogger.debug(LTag.PUMP, "[CarelevoConnectSafetyCheckViewModel::retryAdditionalPriming] response success")
                     }
 
                     is ResponseResult.Error -> {
-                        Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::retryAdditionalPriming] response error : ${response.e}")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoConnectSafetyCheckViewModel::retryAdditionalPriming] response error : ${response.e}")
                     }
 
                     else -> {
-                        Log.d("connect_test", "[CarelevoConnectSafetyCheckViewModel::retryAdditionalPriming] response failed")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoConnectSafetyCheckViewModel::retryAdditionalPriming] response failed")
                     }
                 }
                 setUiState(UiState.Idle)
@@ -306,7 +299,7 @@ class CarelevoPatchSafetyCheckViewModel @Inject constructor(
     fun isConnected() = carelevoPatch.isCarelevoConnected()
 
     override fun onCleared() {
-        //compositeDisposable.clear()
+        compositeDisposable.clear()
         super.onCleared()
     }
 }

@@ -5,6 +5,7 @@
 
     <string name="common_btn_ok">OK</string>
 
+    <string name="carelevo_bluetooth_state_key">Bluetooth status</string>
     <string name="carelevo_patch_state_key">Connection</string>
     <string name="carelevo_serial_number_key">Serial No.</string>
     <string name="carelevo_firmware_version_key">Firmware</string>
@@ -13,7 +14,7 @@
     <string name="carelevo_expiration_key">Expiration</string>
     <string name="carelevo_infusion_status_key">Infusion</string>
     <string name="carelevo_basal_rate_key">Basal Rate</string>
-    <string name="carelevo_temp_basal_rate_key">Temp Basal</string>
+    <string name="carelevo_temp_basal_rate_key">Temp basal rate</string>
     <string name="carelevo_insulin_remain_key">Insulin Remaining</string>
     <string name="carelevo_total_delivered_basal_key">Basal Delivered</string>
     <string name="carelevo_total_delivered_bolus_key">Bolus Delivered</string>
@@ -22,6 +23,7 @@
     <string name="carelevo_imme_bolus_rate_key">Immediate Bolus</string>
     <string name="carelevo_extend_bolus_rate_key">Extended Bolus</string>
     <string name="carelevo_bolus_time_range">Delivery Duration</string>
+    <string name="carelevo_total_insulin_key">Total insulin delivered</string>
 
     <string name="common_label_unit_value_duration_hour_and_minute">%d hrs %d min</string>
     <string name="common_label_unit_value_date_format_year_month_date_day">(E), MMMM dd, yyyy</string>
@@ -35,11 +37,24 @@
     <string name="common_label_unit_value_dose_per_speed">%sU/hr</string>
     <string name="common_label_unit_value_dose_per_speed_with_space">%s U/hr</string>
 
+    <string name="carelevo_pump_resume_title">Would you like to resume infusion?</string>
+    <string name="carelevo_pump_resume_description">Infusion will resume when you press Confirm.</string>
+
+    <string name="carelevo_pump_stop_duration_title">Please set the infusion pause time.</string>
+    <string name="carelevo_pump_stop_duration_label_30_min">30 minutes</string>
+    <string name="carelevo_pump_stop_duration_label_1_hour">1 hour</string>
+    <string name="carelevo_pump_stop_duration_label_1_hour_30_min">1 hour 30 minutes</string>
+    <string name="carelevo_pump_stop_duration_label_2_hour">2 hours</string>
+    <string name="carelevo_pump_stop_duration_label_2_hour_30_min">2 hours 30 minutes</string>
+    <string name="carelevo_pump_stop_duration_label_3_hour">3 hours</string>
+    <string name="carelevo_pump_stop_duration_label_3_hour_30_min">3 hours 30 minutes</string>
+    <string name="carelevo_pump_stop_duration_label_4_hour">4 hours</string>
 
     <string name="common_unit_step_format">%1$d/%2$d</string>
     <string name="common_unit_value_day_hour_min">%1$d days %2$02d:%3$02d</string>
     <string name="common_unit_remain_min_sec">%d min %02d sec remaining</string>
 
+    <string name="carelevo_btn_insulin_guide">Insulin Guide</string>
     <string name="carelevo_btn_patch_expiration">Deactivate Patch</string>
     <string name="carelevo_btn_input_insulin_amount">Fill Amount</string>
     <string name="carelevo_btn_input_search_patch">Search Patch</string>
@@ -63,17 +78,15 @@
     <string name="carelevo_overview_pump_resume_btn_label">Start Insulin</string>
     <string name="carelevo_overview_pump_discard_btn_label">Patch Expired</string>
 
-    <string name="carelevo_overview_infusion_state_basal">Basal</string>
-    <string name="carelevo_overview_infusion_state_temp_basal">Temp Basal</string>
-    <string name="carelevo_overview_infusion_state_imme_bolus">Bolus</string>
-    <string name="carelevo_overview_infusion_state_extend_bolus">Extended Bolus</string>
-    <string name="carelevo_overview_infusion_state_pump_stop">Pause Insulin</string>
-
-    <string name="carelevo_dialog_insulin_input_title">Enter insulin amount.</string>
-    <string name="carelevo_dialog_insulin_input_hint">Insulin amount</string>
-
     <string name="patch_prepare_dialog_title_insulin_amount">Select filled amount.</string>
     <string name="patch_prepare_dialog_msg_insulin_range">Range : 50 ~ 300 U</string>
+
+    <string name="carelevo_insulin_refill_guide_title">Insulin Refill Guide</string>
+    <string name="carelevo_insulin_refill_step1">1. Insert the syringe into the patch’s insulin injection port (①) and pull back the plunger to remove any air.</string>
+    <string name="carelevo_insulin_refill_step2">2. Fill the syringe with the amount of insulin needed for the patch’s usage period.</string>
+    <string name="carelevo_insulin_refill_step3">3. After filling the syringe, insert the needle into the patch’s insulin injection port (①) again and pull back the plunger to remove any remaining air.</string>
+    <string name="carelevo_insulin_refill_step4">4. After removing air, check the top marking of the plunger to read the exact insulin volume in the syringe and record it.</string>
+    <string name="carelevo_insulin_refill_step5">5. Insert the syringe into the patch’s injection port and slowly push the plunger to inject insulin into the patch.</string>
 
     <string name="carelevo_connect_prepare_title">Patch Started</string>
     <string name="carelevo_connect_patch_title">Connect Patch</string>
@@ -90,7 +103,6 @@
     <string name="carelevo_patch_expiration_reminders_message">A reminder sounds when patch usage time exceeds the set time.</string>
 
     <string name="carelevo_preferences_category_confirmation_beeps">Confirmation Beeps</string>
-    <string name="carelevo_preferences_category_notifications">Notifications</string>
 
     <string name="carelevo_title_fill_insulin">Fill Patch with Insulin</string>
     <string name="carelevo_notice_fill_insulin_amount">Fill the patch with insulin (50–300 U), considering the usage period (up to 168 hours). Tap the [Fill Amount] for insulin filled.</string>
@@ -104,19 +116,21 @@
     <string name="carelevo_patch_connect_step_2_title">Power On and Connect</string>
     <string name="carelevo_patch_connect_step_2_desc">Press the power button for more than 1 second. After the beep, Tap the [Search Patch] button below.</string>
 
-    <string name="carelevo_patch_safety_check_start_title">Start Safety Check</string>
+    <string name="carelevo_patch_safety_check_start_title">Safety Check</string>
     <string name="carelevo_patch_safety_check_end_title">Safety Check Completed</string>
-    <string name="carelevo_patch_safety_check_start_desc">Connection successful. Tap the [Safety Check] button.</string>
-    <string name="carelevo_patch_safety_check_end_desc">Safety check completed. Tap the [Next] button.</string>
-    <string name="carelevo_patch_safety_check_desc_warning">Check for insulin drop at the tip of the needle during safety check.</string>
-    <string name="carelevo_patch_safety_check_retry_desc">Didn\'t see insulin drops?</string>
+    <string name="carelevo_patch_safety_check_start_desc">The patch has been connected successfully.\nPlease press the [Safety Check] button.</string>
+    <string name="carelevo_patch_safety_check_progress_desc">Safety check in progress.</string>
+    <string name="carelevo_patch_safety_check_end_desc">Safety check completed.\nPlease press the Next button.</string>
+    <string name="carelevo_patch_safety_check_desc_warning">Please check whether an insulin droplet has formed at the needle tip.</string>
+    <string name="carelevo_patch_safety_check_retry_desc">If no insulin droplet is visible, please press the [Retry] button.</string>
 
     <string name="carelevo_patch_attach_step1_title">Disinfect Patch Site</string>
     <string name="carelevo_patch_attach_step1_desc">Clean thoroughly with an alcohol swab.</string>
     <string name="carelevo_patch_attach_step2_title">Remove Backing Tape</string>
     <string name="carelevo_patch_attach_step2_desc">Take out patch from blister and remove needle cap.</string>
     <string name="carelevo_patch_attach_step3_title">Apply Patch</string>
-    <string name="carelevo_patch_attach_step3_desc">Apply the patch to the skin. Tap the [Ready] button.</string>
+    <string name="carelevo_patch_attach_step3_desc">Attach the patch to your skin with the marked dot facing upward.</string>
+    <string name="carelevo_patch_attach_step4_desc">After attaching the patch, press the Ready button.</string>
 
     <string name="carelevo_patch_needle_insertion_step1_title">Remove Safety Cap</string>
     <string name="carelevo_patch_needle_insertion_step1_desc">Turn the safety cap in the direction of the arrow and remove.</string>
@@ -126,9 +140,20 @@
 
     <string name="carelevo_dialog_patch_needle_check_title">Needle not inserted?</string>
     <string name="carelevo_dialog_patch_needle_check_desc">Press the applicator push button all the way down.\nYou will hear a beep sound upon successful insertion.\nTap the <b>[Check Insertion]</b> button below.</string>
+    <string name="carelevo_dialog_patch_needle_check_retry_desc">Press the applicator push button all the way down.\nYou will hear a beep sound upon successful insertion.\nTap the <b>[Retry]</b> button below.</string>
+    <string name="carelevo_dialog_patch_needle_retry_count">%d retry attempt(s) left for needle insertion.</string>
     <string name="carelevo_dialog_patch_discard_message_title">Deactivate patch and start new patch?</string>
     <string name="carelevo_dialog_patch_discard_message_desc">Pressing the [OK] button will stop insulin.</string>
-    <string name="carelevo_dialog_patch_connect_message_title">If the patch address is correct, tap Confirm. If not, tap Rescan.</string>
+    <string name="carelevo_dialog_patch_connect_message_title">If the patch detected below is correct, please tap the Confirm button.</string>
+
+    <string name="carelevo_dialog_patch_connect_needle_injected">Needle insertion complete and applicator removal</string>
+
+    <string name="carelevo_dialog_connect_detached">Removal complete</string>
+
+    <string name="carelevo_dialog_connect_detach_applicator_guide">
+        Press the grips on both sides of the applicator to detach it from the patch,\n
+        and then press the <b>[Removal Complete]</b> button. Insulin delivery will begin.
+    </string>
 
     <!-- Connection -->
     <string name="carelevo_toast_patch_connecting">Patch is connecting…</string>
@@ -162,6 +187,9 @@
     <!-- Safety Check -->
     <string name="carelevo_toast_msg_safety_check_success">Safety check completed successfully.</string>
     <string name="carelevo_toast_msg_safety_check_failed">Safety check failed.</string>
+
+    <string name="carelevo_comm_check_title">Communication Check</string>
+    <string name="carelevo_comm_check_description">Communication with the patch is not stable.\nIf you want to reconnect, tap Communication Check. If you want to stop using it, tap End Use.</string>
 
 
     <string name="alarm_feat_label_warning">Critical</string>

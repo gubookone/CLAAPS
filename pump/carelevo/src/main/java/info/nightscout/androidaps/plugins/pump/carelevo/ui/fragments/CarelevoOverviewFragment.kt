@@ -1,6 +1,5 @@
 package info.nightscout.androidaps.plugins.pump.carelevo.ui.fragments
 
-import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -19,9 +18,9 @@ import info.nightscout.androidaps.plugins.pump.carelevo.ui.activities.CarelevoAc
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.activities.CarelevoAlarmActivity
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.base.CarelevoBaseCircleProgress
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.base.CarelevoBaseFragment
+import info.nightscout.androidaps.plugins.pump.carelevo.ui.dialog.TextBottomSheetDialog
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.ext.repeatOnStartedWithViewOwner
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.ext.showDialogDiscardConfirm
-import info.nightscout.androidaps.plugins.pump.carelevo.ui.ext.showDialogPumpResumeConfirm
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.ext.showDialogPumpStopDurationSelect
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.model.CarelevoOverviewEvent
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.type.CarelevoScreenType
@@ -33,9 +32,7 @@ class CarelevoOverviewFragment : CarelevoBaseFragment<FragmentCarelevoOverviewBi
 
     private val launchConnectActivity =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
 
-            }
         }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -46,11 +43,13 @@ class CarelevoOverviewFragment : CarelevoBaseFragment<FragmentCarelevoOverviewBi
             viewModel.observePatchInfo()
             viewModel.observePatchState()
             viewModel.observeInfusionInfo()
+            viewModel.observeBleState()
             viewModel.observeProfile()
             viewModel.setIsCreated(true)
         }
         setupView()
         setupObserver()
+        alignKeyWidthsWithCap()
     }
 
     override fun onResume() {
@@ -63,7 +62,7 @@ class CarelevoOverviewFragment : CarelevoBaseFragment<FragmentCarelevoOverviewBi
         loadingProgress = CarelevoBaseCircleProgress(requireContext())
         with(binding) {
             btnConnect.setOnClickListener {
-                when (this@CarelevoOverviewFragment.viewModel.bleState.value) {
+                when (this@CarelevoOverviewFragment.viewModel.patchState.value) {
                     PatchState.NotConnectedBooted -> startCarelevoActivity(CarelevoScreenType.COMMUNICATION_CHECK)
                     PatchState.NotConnectedNotBooting -> startCarelevoActivity(CarelevoScreenType.CONNECTION_FLOW_START)
                     PatchState.ConnectedBooted -> ToastUtils.infoToast(requireContext(), ContextCompat.getString(requireContext(), R.string.carelevo_toast_patch_connecting))
@@ -78,6 +77,35 @@ class CarelevoOverviewFragment : CarelevoBaseFragment<FragmentCarelevoOverviewBi
             btnPump.setOnClickListener {
                 this@CarelevoOverviewFragment.viewModel.triggerEvent(CarelevoOverviewEvent.ClickPumpStopResumeBtn)
             }
+        }
+    }
+
+    private fun alignKeyWidthsWithCap() {
+        val rows = listOf(
+            binding.containerBluetoothState,
+            binding.containerSerialNum,
+            binding.containerLotNum,
+            binding.containerBootTime,
+            binding.containerExpiredTime,
+            binding.containerRunningRemainMinutes,
+            binding.containerPatchState,
+            binding.containerBasalRate,
+            binding.containerTempBasalRate,
+            binding.containerInsulinRemain,
+            binding.containerTotalDeliveryDoze
+        )
+
+        rows.first().post {
+            val sampleRow = rows.first()
+            val contentWidthPx = sampleRow.getContentWidthPx()
+            val capPx = (contentWidthPx * 0.5f).toInt()
+            val paint = sampleRow.getKeyPaint()
+            val maxKeyTextWidthPx = rows.maxOf { row ->
+                paint.measureText(row.keyText).toInt()
+            }
+            val finalKeyWidthPx = minOf(maxKeyTextWidthPx + 30, capPx) // 앞에 공간을 주기 위해 30정도 더해줌.
+
+            rows.forEach { it.setKeyWidthPx(finalKeyWidthPx) }
         }
     }
 
@@ -198,10 +226,20 @@ class CarelevoOverviewFragment : CarelevoBaseFragment<FragmentCarelevoOverviewBi
     }
 
     private fun showPumpResumeConfirmDialog() {
-        showDialogPumpResumeConfirm(
-            positiveCallback = {
-                viewModel.startPumpResume()
-            }
-        )
+        TextBottomSheetDialog.Builder()
+            .setTitle(requireContext().getString(R.string.carelevo_pump_resume_title))
+            .setContent(requireContext().getString(R.string.carelevo_pump_resume_description))
+            .setSecondaryButton(
+                TextBottomSheetDialog.Button(
+                    text = requireContext().getString(R.string.carelevo_btn_cancel)
+                )
+            ).setPrimaryButton(
+                TextBottomSheetDialog.Button(
+                    text = requireContext().getString(R.string.carelevo_btn_confirm),
+                    onClickListener = {
+                        viewModel.startPumpResume()
+                    }
+            )).build().show(childFragmentManager, "dialog_carelevo_discard_confirm")
+
     }
 }

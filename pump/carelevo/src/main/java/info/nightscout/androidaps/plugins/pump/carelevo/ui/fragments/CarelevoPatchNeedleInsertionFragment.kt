@@ -45,7 +45,7 @@ class CarelevoPatchNeedleInsertionFragment : CarelevoBaseFragment<FragmentCarele
         with(binding) {
             btnOk.setOnClickListener {
                 if (viewModel.isNeedleInsert.value) {
-                    viewModel.startSetBasal()
+                    showNeedleInsertionCompleteDialog()
                 } else {
                     showCheckNeedleDialog()
                 }
@@ -67,6 +67,12 @@ class CarelevoPatchNeedleInsertionFragment : CarelevoBaseFragment<FragmentCarele
         repeatOnStartedWithViewOwner {
             viewModel.uiState.collect {
                 handleState(it)
+            }
+        }
+
+        repeatOnStartedWithViewOwner {
+            viewModel.isNeedleInsert.collect { isNeedleInsert ->
+                //
             }
         }
     }
@@ -104,9 +110,6 @@ class CarelevoPatchNeedleInsertionFragment : CarelevoBaseFragment<FragmentCarele
             is CarelevoConnectNeedleEvent.CheckNeedleFailed -> {
                 if (event.failedCount >= MAX_NEEDLE_CHECK_COUNT) {
                     activityFinish()
-                } else {
-                    // todo dialog로 변경
-                    ToastUtils.infoToast(requireContext(), getString(R.string.carelevo_toast_msg_needle_retry_count, MAX_NEEDLE_CHECK_COUNT - event.failedCount))
                 }
             }
 
@@ -151,22 +154,54 @@ class CarelevoPatchNeedleInsertionFragment : CarelevoBaseFragment<FragmentCarele
         )
     }
 
-    private fun showCheckNeedleDialog() {
+    private fun showNeedleInsertionCompleteDialog() {
         TextBottomSheetDialog.Builder().setTitle(
-            requireContext().getString(R.string.carelevo_dialog_patch_needle_check_title)
+            requireContext().getString(R.string.carelevo_dialog_patch_connect_needle_injected)
         ).setContent(
-            requireContext().getString(R.string.carelevo_dialog_patch_needle_check_desc)
-        ).setSecondaryButton(
-            TextBottomSheetDialog.Button(
-                text = requireContext().getString(R.string.carelevo_btn_close),
-            )
+            requireContext().getString(R.string.carelevo_dialog_connect_detach_applicator_guide)
         ).setPrimaryButton(
             TextBottomSheetDialog.Button(
-                text = requireContext().getString(R.string.carelevo_btn_needle_insert_check),
+                text = requireContext().getString(R.string.carelevo_dialog_connect_detached),
                 onClickListener = {
-                    viewModel.startCheckNeedle()
+                    viewModel.startSetBasal()
                 }
             )).build().show(childFragmentManager, "")
+    }
+
+    private fun showCheckNeedleDialog() {
+        val needleFailCount = viewModel.needleFailCount() ?: 0
+        val remainRetryCount = MAX_NEEDLE_CHECK_COUNT - needleFailCount
+
+        val (btnStr, subContent, desc) = if (needleFailCount > 0) {
+            Triple(
+                getString(R.string.carelevo_btn_retry),
+                getString(R.string.carelevo_dialog_patch_needle_retry_count, remainRetryCount),
+                getString(R.string.carelevo_dialog_patch_needle_check_retry_desc)
+            )
+        } else {
+            Triple(
+                getString(R.string.carelevo_btn_needle_insert_check),
+                "",
+                getString(R.string.carelevo_dialog_patch_needle_check_desc)
+            )
+        }
+
+        TextBottomSheetDialog.Builder()
+            .setTitle(requireContext().getString(R.string.carelevo_dialog_patch_needle_check_title))
+            .setContent(desc)
+            .setSubContent(subContent)
+            .setSecondaryButton(
+                TextBottomSheetDialog.Button(
+                    text = requireContext().getString(R.string.carelevo_btn_close),
+                )
+            ).setPrimaryButton(
+                TextBottomSheetDialog.Button(
+                    text = btnStr,
+                    onClickListener = {
+                        viewModel.startCheckNeedle()
+                    }
+                )
+            ).build().show(childFragmentManager, "CheckNeedleDialog")
     }
 
 }

@@ -1,10 +1,8 @@
 package info.nightscout.androidaps.plugins.pump.carelevo.ui.fragments
 
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import androidx.core.view.isVisible
-import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import app.aaps.core.ui.toast.ToastUtils
@@ -56,9 +54,7 @@ class CarelevoPatchSafetyCheckFragment : CarelevoBaseFragment<FragmentCarelevoPa
             }
 
             btnNext.setOnClickListener {
-                Log.d("connect_test", "[CarelevoSafetyCheckFragment::setupView] btnNext clicked")
                 sharedViewModel.setPage(CarelevoPatchStep.PATCH_ATTACH)
-                //setFragment(CarelevoPatchAttachFragment.getInstance())
             }
 
             btnRetry.setOnClickListener {
@@ -70,15 +66,10 @@ class CarelevoPatchSafetyCheckFragment : CarelevoBaseFragment<FragmentCarelevoPa
             handleSafetyCheckSuccess()
             handleProgress(100)
             handleRemainSec(0)
+        } else {
+            handleSafetyCheckReady()
         }
     }
-
-    private fun setFragment(fragment: Fragment) = parentFragmentManager.beginTransaction()
-        .apply {
-            replace(R.id.container_fragment, fragment)
-                .addToBackStack(null)
-                .commit()
-        }
 
     private fun setupObserver() {
         repeatOnStartedWithViewOwner {
@@ -98,7 +89,6 @@ class CarelevoPatchSafetyCheckFragment : CarelevoBaseFragment<FragmentCarelevoPa
                 value?.let {
                     handleProgress(it)
                 }
-
             }
         }
 
@@ -131,17 +121,11 @@ class CarelevoPatchSafetyCheckFragment : CarelevoBaseFragment<FragmentCarelevoPa
     private fun handleEvent(event: Event) {
         when (event) {
             is CarelevoConnectSafetyCheckEvent.ShowMessageBluetoothNotEnabled -> {
-                ToastUtils.infoToast(
-                    requireContext(),
-                    getString(R.string.carelevo_toast_msg_bluetooth_not_enabled)
-                )
+                ToastUtils.infoToast(requireContext(), getString(R.string.carelevo_toast_msg_bluetooth_not_enabled))
             }
 
             is CarelevoConnectSafetyCheckEvent.ShowMessageCarelevoIsNotConnected -> {
-                ToastUtils.infoToast(
-                    requireContext(),
-                    getString(R.string.carelevo_toast_msg_not_connected_waiting_retry)
-                )
+                ToastUtils.infoToast(requireContext(), getString(R.string.carelevo_toast_msg_not_connected_waiting_retry))
             }
 
             is CarelevoConnectSafetyCheckEvent.SafetyCheckProgress -> {
@@ -149,49 +133,54 @@ class CarelevoPatchSafetyCheckFragment : CarelevoBaseFragment<FragmentCarelevoPa
             }
 
             is CarelevoConnectSafetyCheckEvent.SafetyCheckComplete -> {
-                ToastUtils.infoToast(
-                    requireContext(),
-                    getString(R.string.carelevo_toast_msg_safety_check_success)
-                )
+                ToastUtils.infoToast(requireContext(), getString(R.string.carelevo_toast_msg_safety_check_success))
                 handleSafetyCheckSuccess()
             }
 
             is CarelevoConnectSafetyCheckEvent.SafetyCheckFailed -> {
-                ToastUtils.infoToast(
-                    requireContext(),
-                    getString(R.string.carelevo_toast_msg_safety_check_failed)
-                )
+                ToastUtils.infoToast(requireContext(), getString(R.string.carelevo_toast_msg_safety_check_failed))
             }
 
             is CarelevoConnectSafetyCheckEvent.DiscardComplete -> {
-                ToastUtils.infoToast(
-                    requireContext(),
-                    getString(R.string.carelevo_toast_msg_discard_complete)
-                )
+                ToastUtils.infoToast(requireContext(), getString(R.string.carelevo_toast_msg_discard_complete))
                 requireActivity().finish()
             }
 
             is CarelevoConnectSafetyCheckEvent.DiscardFailed -> {
-                ToastUtils.infoToast(
-                    requireContext(),
-                    getString(R.string.carelevo_toast_msg_discard_failed)
-                )
+                ToastUtils.infoToast(requireContext(), getString(R.string.carelevo_toast_msg_discard_failed))
             }
         }
     }
 
-    private fun handleSafetyCheckProgress() {
-        binding.btnNext.isVisible = true
-        binding.btnSafetyCheck.isVisible = false
-        binding.layoutRetry.isVisible = false
-        binding.btnNext.isEnabled = false
+    private fun handleSafetyCheckReady() = with(binding) {
+        tvTitle.text = getString(R.string.carelevo_patch_safety_check_start_title)
+        tvDesc.text = getString(R.string.carelevo_patch_safety_check_start_desc)
+        btnNext.isVisible = false
+        btnSafetyCheck.isVisible = true
+        layoutRetry.isVisible = false
+        btnNext.isEnabled = false
+        tvDescWarning.isVisible = false
+        ivWarning.isVisible = false
     }
 
-    private fun handleSafetyCheckSuccess() {
-        binding.btnNext.isVisible = true
-        binding.btnSafetyCheck.isVisible = false
-        binding.layoutRetry.isVisible = true
-        binding.btnNext.isEnabled = true
+    private fun handleSafetyCheckProgress() = with(binding) {
+        tvTitle.text = getString(R.string.carelevo_patch_safety_check_start_title)
+        tvDesc.text = getString(R.string.carelevo_patch_safety_check_progress_desc)
+        btnNext.isVisible = true
+        btnSafetyCheck.isVisible = false
+        layoutRetry.isVisible = false
+        btnNext.isEnabled = false
+    }
+
+    private fun handleSafetyCheckSuccess() = with(binding) {
+        tvTitle.text = getString(R.string.carelevo_patch_safety_check_end_title)
+        tvDesc.text = getString(R.string.carelevo_patch_safety_check_end_desc)
+        btnNext.isVisible = true
+        btnSafetyCheck.isVisible = false
+        layoutRetry.isVisible = true
+        btnNext.isEnabled = true
+        tvDescWarning.isVisible = true
+        ivWarning.isVisible = true
     }
 
     private fun showDiscardConfirmDialog() {

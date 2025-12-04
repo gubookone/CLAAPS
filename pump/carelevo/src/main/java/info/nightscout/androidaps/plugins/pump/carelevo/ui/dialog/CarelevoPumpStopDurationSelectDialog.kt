@@ -36,6 +36,10 @@ class CarelevoPumpStopDurationSelectDialog : CarelevoBaseDialog<DialogCarelevoPu
                     R.id.rb_60 -> selectedDurationMin = 60
                     R.id.rb_90 -> selectedDurationMin = 90
                     R.id.rb_120 -> selectedDurationMin = 120
+                    R.id.rb_150 -> selectedDurationMin = 150
+                    R.id.rb_180 -> selectedDurationMin = 180
+                    R.id.rb_210 -> selectedDurationMin = 210
+                    R.id.rb_240 -> selectedDurationMin = 240
                 }
             }
 
@@ -68,6 +72,18 @@ class CarelevoPumpStopDurationSelectDialog : CarelevoBaseDialog<DialogCarelevoPu
                 }
                 120 -> {
                     rgSelect.setSelection(3)
+                }
+                150 -> {
+                    rgSelect.setSelection(4)
+                }
+                180 -> {
+                    rgSelect.setSelection(5)
+                }
+                210 -> {
+                    rgSelect.setSelection(6)
+                }
+                240 -> {
+                    rgSelect.setSelection(7)
                 }
             }
         }

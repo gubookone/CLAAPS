@@ -2,21 +2,8 @@ package info.nightscout.androidaps.plugins.pump.carelevo.ui.ext
 
 import androidx.fragment.app.Fragment
 import info.nightscout.androidaps.plugins.pump.carelevo.R
-import info.nightscout.androidaps.plugins.pump.carelevo.ui.dialog.CarelevoInsulinInputDialog
-import info.nightscout.androidaps.plugins.pump.carelevo.ui.dialog.CarelevoPumpResumeConfirmDialog
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.dialog.CarelevoPumpStopDurationSelectDialog
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.dialog.TextBottomSheetDialog
-
-internal fun Fragment.showDialogInsulinInput(
-    insulin: Int,
-    positiveCallback: ((value: Int) -> Unit)? = null
-) {
-    CarelevoInsulinInputDialog
-        .getInstance(insulin)
-        .apply {
-            setPositiveClickListener(positiveCallback)
-        }.show(childFragmentManager, CarelevoInsulinInputDialog.TAG_DIALOG)
-}
 
 internal fun Fragment.showDialogConnect(
     address: String,
@@ -26,7 +13,7 @@ internal fun Fragment.showDialogConnect(
     TextBottomSheetDialog.Builder().setTitle(
         requireContext().getString(R.string.carelevo_dialog_patch_connect_message_title)
     ).setContent(
-        address
+        "CareLevo"
     ).setSecondaryButton(
         TextBottomSheetDialog.Button(
             text = requireContext().getString(R.string.carelevo_btn_research),
@@ -71,14 +58,4 @@ internal fun Fragment.showDialogPumpStopDurationSelect(
         .apply {
             setPositiveClickListener(positiveCallback)
         }.show(childFragmentManager, CarelevoPumpStopDurationSelectDialog.TAG_DIALOG)
-}
-
-internal fun Fragment.showDialogPumpResumeConfirm(
-    positiveCallback: (() -> Unit)?
-) {
-    CarelevoPumpResumeConfirmDialog
-        .getInstance()
-        .apply {
-            setPositiveClickListener(positiveCallback)
-        }.show(childFragmentManager, CarelevoPumpResumeConfirmDialog.TAG_DIALOG)
 }

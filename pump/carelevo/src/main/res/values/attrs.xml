@@ -5,5 +5,7 @@
         <attr name="valueText" format="string" />
         <attr name="topLineVisible" format="boolean" />
         <attr name="bottomLineVisible" format="boolean" />
+        <attr name="valueTextColor" format="color|reference" />
+        <attr name="valueTextSize" format="dimension" />
     </declare-styleable>
 </resources>

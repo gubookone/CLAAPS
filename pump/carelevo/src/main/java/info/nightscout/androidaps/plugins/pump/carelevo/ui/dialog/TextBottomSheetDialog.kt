@@ -16,6 +16,7 @@ class TextBottomSheetDialog : CarelevoBaseDialog<DialogTextBottomSheetBinding>(R
 
     private var title = ""
     private var content = ""
+    private var subContent = ""
     private var primaryButton: Button? = null
     private var secondaryButton: Button? = null
 
@@ -37,6 +38,9 @@ class TextBottomSheetDialog : CarelevoBaseDialog<DialogTextBottomSheetBinding>(R
                 content
             }
             tvContent.isVisible = content.isNotBlank()
+
+            tvSubContent.text = subContent
+            tvSubContent.isVisible = subContent.isNotBlank()
 
             initButton(tvPrimaryButton, primaryButton)
             initButton(tvSecondaryButton, secondaryButton)
@@ -76,11 +80,13 @@ class TextBottomSheetDialog : CarelevoBaseDialog<DialogTextBottomSheetBinding>(R
 
         private var title = ""
         private var content = ""
+        private var subContent = ""
         private var primaryButton: Button? = null
         private var secondaryButton: Button? = null
 
         fun setTitle(title: String) = apply { this.title = title }
         fun setContent(content: String) = apply { this.content = content }
+        fun setSubContent(subContent: String) = apply { this.subContent = subContent }
         fun setPrimaryButton(button: Button) = apply { this.primaryButton = button }
         fun setSecondaryButton(button: Button) = apply { this.secondaryButton = button }
 
@@ -88,6 +94,7 @@ class TextBottomSheetDialog : CarelevoBaseDialog<DialogTextBottomSheetBinding>(R
             return TextBottomSheetDialog().apply {
                 this.title = this@Builder.title
                 this.content = this@Builder.content
+                this.subContent = this@Builder.subContent
                 this.primaryButton = this@Builder.primaryButton
                 this.secondaryButton = this@Builder.secondaryButton
             }

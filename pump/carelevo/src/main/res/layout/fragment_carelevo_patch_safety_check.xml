@@ -28,28 +28,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tv_title" />
 
-        <ImageView
-            android:id="@+id/iv_warning"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:layout_constraintBottom_toBottomOf="@id/tv_desc_warning"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="@id/tv_desc_warning"
-            app:srcCompat="@drawable/ic_toast_error" />
-
-        <TextView
-            android:id="@+id/tv_desc_warning"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
-            android:layout_marginTop="10dp"
-            android:text="@string/carelevo_patch_safety_check_desc_warning"
-            android:textColor="?attr/ribbonCriticalColor"
-            android:textSize="16sp"
-            app:layout_constraintStart_toEndOf="@id/iv_warning"
-            app:layout_constraintTop_toBottomOf="@id/tv_desc"
-            tools:text="안전점검 후 인슐린 방울이 맺혔는지 확인해 주세요." />
-
         <ProgressBar
             android:id="@+id/progressbar_patch_safety_check"
             style="@android:style/Widget.ProgressBar.Horizontal"
@@ -57,7 +35,7 @@
             android:layout_height="10dp"
             android:layout_marginTop="20dp"
             android:max="100"
-            app:layout_constraintTop_toBottomOf="@+id/tv_desc_warning"
+            app:layout_constraintTop_toBottomOf="@+id/tv_desc"
             tools:progress="20" />
 
         <TextView
@@ -78,12 +56,38 @@
             app:layout_constraintEnd_toEndOf="parent"
             tools:text="50/100" />
 
+        <ImageView
+            android:id="@+id/iv_warning"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:layout_constraintBottom_toBottomOf="@id/tv_desc_warning"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="@id/tv_desc_warning"
+            app:srcCompat="@drawable/ic_toast_warn" />
+
+        <TextView
+            android:id="@+id/tv_desc_warning"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_marginTop="20dp"
+            android:paddingVertical="4dp"
+            android:text="@string/carelevo_patch_safety_check_desc_warning"
+            android:textColor="?attr/warnColor"
+            android:textSize="16sp"
+            app:layout_constraintStart_toEndOf="@id/iv_warning"
+            app:layout_constraintTop_toBottomOf="@id/tv_remain_time"
+            tools:text="안전점검 후 인슐린 방울이 맺혔는지 확인해 주세요." />
+
+
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/layout_retry"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
             android:visibility="gone"
-            app:layout_constraintBottom_toTopOf="@id/container_buttons">
+            app:layout_constraintTop_toBottomOf="@id/tv_desc_warning"
+            tools:visibility="visible">
 
             <TextView
                 android:id="@+id/tv_retry_desc"
@@ -91,7 +95,6 @@
                 android:layout_height="wrap_content"
                 android:text="@string/carelevo_patch_safety_check_retry_desc"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
             <Button
@@ -101,7 +104,6 @@
                 android:layout_marginTop="8dp"
                 android:text="@string/carelevo_btn_retry"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/tv_retry_desc" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
@@ -110,14 +112,13 @@
             android:id="@+id/container_buttons"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:padding="16dp"
             app:layout_constraintBottom_toBottomOf="parent">
 
             <app.aaps.core.ui.elements.SingleClickButton
                 android:id="@+id/btn_discard"
-                style="@style/ButtonMediumFontStyle"
+                style="@style/GrayButton"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="60dp"
                 android:layout_marginEnd="4dp"
                 android:text="@string/carelevo_btn_patch_expiration"
                 app:layout_constraintBottom_toBottomOf="parent"
@@ -127,9 +128,9 @@
 
             <app.aaps.core.ui.elements.SingleClickButton
                 android:id="@+id/btn_safety_check"
-                style="@style/ButtonMediumFontStyle"
+                style="@style/GrayButton"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="60dp"
                 android:text="@string/carelevo_btn_safety_check"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toStartOf="@id/btn_next"
@@ -138,9 +139,9 @@
 
             <app.aaps.core.ui.elements.SingleClickButton
                 android:id="@+id/btn_next"
-                style="@style/ButtonMediumFontStyle"
+                style="@style/GrayButton"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="60dp"
                 android:text="@string/carelevo_btn_next"
                 android:layout_marginStart="4dp"
                 android:visibility="gone"

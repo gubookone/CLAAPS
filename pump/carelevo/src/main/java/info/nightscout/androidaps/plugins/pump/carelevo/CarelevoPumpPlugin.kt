@@ -597,7 +597,6 @@ class CarelevoPumpPlugin @Inject constructor(
         val working = carelevoPatch.isWorking
 
         val result = connected || working
-        aapsLogger.debug(LTag.PUMP, "[CarelevoPumpPlugin::isConnected] connected=$connected, working=$working, result=$result")
         return result
     }
 
@@ -672,6 +671,7 @@ class CarelevoPumpPlugin @Inject constructor(
     }
 
     private fun startUpdateBasalProgram(profile: Profile): PumpEnactResult {
+        aapsLogger.debug("[CarelevoPumpPlugin::startUpdateBasalProgram]: $profile")
         val result = instantiator.providePumpEnactResult()
         carelevoPatch.infusionInfo.value?.getOrNull()?.let {
             if (it.extendBolusInfusionInfo != null) {
@@ -732,9 +732,7 @@ class CarelevoPumpPlugin @Inject constructor(
 
     override val baseBasalRate: Double
         get() {
-            return carelevoPatch.profile.value?.getOrNull()?.let {
-                it.getBasal()
-            } ?: 0.0
+            return carelevoPatch.profile.value?.getOrNull()?.getBasal() ?: 0.0
         }
     override val reservoirLevel: Double
         get() {
@@ -806,7 +804,7 @@ class CarelevoPumpPlugin @Inject constructor(
                     }
 
                     else -> {
-                        aapsLogger.error(LTag.PUMP, "[CarlevoPumpPlugin::deliverTreatment] response failed")
+                        aapsLogger.error(LTag.PUMP, "[CarelevoPumpPlugin::deliverTreatment] response failed")
                     }
                 }
             }.doOnError {
@@ -1154,7 +1152,7 @@ class CarelevoPumpPlugin @Inject constructor(
             try {
                 extended.put("ActiveProfile", profileFunction.getProfile())
             } catch (e: Exception) {
-                // TODO: log
+                e.printStackTrace()
             }
             pumpJson.put("battery", battery)
             pumpJson.put("status", status)
@@ -1162,7 +1160,7 @@ class CarelevoPumpPlugin @Inject constructor(
             pumpJson.put("reservoir", carelevoPatch.patchInfo.value?.getOrNull()?.insulinRemain ?: 0)
             pumpJson.put("clock", dateUtil.toISOString(now))
         } catch (e: JSONException) {
-
+            e.printStackTrace()
         }
         return pumpJson
     }

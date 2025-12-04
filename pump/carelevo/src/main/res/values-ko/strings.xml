@@ -5,15 +5,16 @@
 
     <string name="common_btn_ok">확인</string>
 
+    <string name="carelevo_bluetooth_state_key">블루투스 상태</string>
     <string name="carelevo_patch_state_key">연결 상태</string>
     <string name="carelevo_serial_number_key">시리얼 번호</string>
     <string name="carelevo_firmware_version_key">펌웨어 버전</string>
     <string name="carelevo_lot_number_key">로트 번호</string>
-    <string name="carelevo_boot_date_time_key">기기 시작 시간</string>
+    <string name="carelevo_boot_date_time_key">시작 시간</string>
     <string name="carelevo_expiration_key">만료 시간</string>
     <string name="carelevo_infusion_status_key">기저 주입 상태</string>
-    <string name="carelevo_basal_rate_key">기저 속도</string>
-    <string name="carelevo_temp_basal_rate_key">임시 기저 속도</string>
+    <string name="carelevo_basal_rate_key">기본 basal 양</string>
+    <string name="carelevo_temp_basal_rate_key">임시 basal 양</string>
     <string name="carelevo_insulin_remain_key">남은 인슐린</string>
     <string name="carelevo_total_delivered_basal_key">총 주입 기저</string>
     <string name="carelevo_total_delivered_bolus_key">총 주입 볼러스</string>
@@ -22,6 +23,7 @@
     <string name="carelevo_imme_bolus_rate_key">즉시 볼러스 주입량</string>
     <string name="carelevo_extend_bolus_rate_key">연장 볼러스 주입량</string>
     <string name="carelevo_bolus_time_range">볼러스 주입 기간</string>
+    <string name="carelevo_total_insulin_key">총 인슐린 주입량</string>
 
     <string name="common_label_unit_value_duration_hour_and_minute">%d시간 %d분</string>
     <string name="common_label_unit_value_date_format_year_month_date_day">yyyy.MM.dd (E)</string>
@@ -35,10 +37,24 @@
     <string name="common_label_unit_value_dose_per_speed">%sU/hr</string>
     <string name="common_label_unit_value_dose_per_speed_with_space">%s U/hr</string>
 
+    <string name="carelevo_pump_resume_title">주입을 재개 할까요?</string>
+    <string name="carelevo_pump_resume_description">확인 버튼을 누르면 주입이 재개 됩니다.</string>
+
+    <string name="carelevo_pump_stop_duration_title">주입 정지 시간을 설정해 주세요.</string>
+    <string name="carelevo_pump_stop_duration_label_30_min">30분</string>
+    <string name="carelevo_pump_stop_duration_label_1_hour">1시간</string>
+    <string name="carelevo_pump_stop_duration_label_1_hour_30_min">1시간 30분</string>
+    <string name="carelevo_pump_stop_duration_label_2_hour">2시간</string>
+    <string name="carelevo_pump_stop_duration_label_2_hour_30_min">2시간 30분</string>
+    <string name="carelevo_pump_stop_duration_label_3_hour">3시간</string>
+    <string name="carelevo_pump_stop_duration_label_3_hour_30_min">3시간 30분</string>
+    <string name="carelevo_pump_stop_duration_label_4_hour">4시간</string>
+
     <string name="common_unit_step_format">%1$d/%2$d</string>
     <string name="common_unit_value_day_hour_min">%1$d일 %2$02d:%3$02d</string>
     <string name="common_unit_remain_min_sec">%d분 %02d초 남음</string>
 
+    <string name="carelevo_btn_insulin_guide">인슐린 채우기 가이드</string>
     <string name="carelevo_btn_patch_expiration">사용 종료</string>
     <string name="carelevo_btn_input_insulin_amount">인슐린 양 입력</string>
     <string name="carelevo_btn_input_search_patch">패치 검색</string>
@@ -62,17 +78,15 @@
     <string name="carelevo_overview_pump_resume_btn_label">주입 재개</string>
     <string name="carelevo_overview_pump_discard_btn_label">패치 종료</string>
 
-    <string name="carelevo_overview_infusion_state_basal">기저</string>
-    <string name="carelevo_overview_infusion_state_temp_basal">임시 기저</string>
-    <string name="carelevo_overview_infusion_state_imme_bolus">즉시 주입</string>
-    <string name="carelevo_overview_infusion_state_extend_bolus">연장 주입</string>
-    <string name="carelevo_overview_infusion_state_pump_stop">주입 정지</string>
-
-    <string name="carelevo_dialog_insulin_input_title">인슐린 양을 입력해 주세요.</string>
-    <string name="carelevo_dialog_insulin_input_hint">인슐린 양</string>
-
     <string name="patch_prepare_dialog_title_insulin_amount">채운 인슐린 양 입력</string>
     <string name="patch_prepare_dialog_msg_insulin_range">설정 가능 범위 : 50 ~ 300 U</string>
+
+    <string name="carelevo_insulin_refill_guide_title">인슐린 채우기 가이드</string>
+    <string name="carelevo_insulin_refill_step1">1. 패치의 인슐린 주입구(①)에 주사기를 꽂은 후 플런저를 잡아당겨 공기를 제거합니다.</string>
+    <string name="carelevo_insulin_refill_step2">2. 패치 사용 기간 동안 사용할 인슐린 양만큼 주사기에 인슐린을 채웁니다.</string>
+    <string name="carelevo_insulin_refill_step3">3. 주사기에 인슐린을 채운 후, 패치의 인슐린 주입구①)에 주사기 바늘을 삽입하고 플런저를 잡아당겨 공기를 다시한번 제거합니다.</string>
+    <string name="carelevo_insulin_refill_step4">4. 공기를 제거한 후, 주사기 플런저 가장 위쪽의 눈금을 보고 주사기의 인슐린 용량을 정확히 읽어 기록합니다.</string>
+    <string name="carelevo_insulin_refill_step5">5. 패치의 인슐린 주입구에 주사기를 삽입하고 플런저를 천천히 밀어 패치에 인슐린을 주입합니다.</string>
 
     <string name="carelevo_connect_prepare_title">패치 시작</string>
     <string name="carelevo_connect_patch_title">패치 검색 및 연결</string>
@@ -88,10 +102,7 @@
     <string name="carelevo_patch_expiration_reminders_title_value">패치 사용 기간 알림 설정 값</string>
     <string name="carelevo_patch_expiration_reminders_message">패치를 사용한 기간이 설정한 시간 이상이 되면 알림이 발생합니다.</string>
 
-    <string name="carelevo_preferences_category_other">기타</string>
-    <string name="carelevo_preferences_category_alerts">경고</string>
     <string name="carelevo_preferences_category_confirmation_beeps">확인 신호음</string>
-    <string name="carelevo_preferences_category_notifications">알림</string>
 
     <string name="carelevo_title_fill_insulin">패치에 인슐린 채우기</string>
     <string name="carelevo_notice_fill_insulin_amount">사용 기간 (최대 168시간)을 고려하여 패치에 인슐린을 채워주세요.\n(50 U - 300 U)인슐린 양 입력 버튼을 눌러 채운 인슐린 양을 입력해 주세요.</string>
@@ -105,32 +116,39 @@
     <string name="carelevo_patch_connect_step_2_title">전원 켜기 및 연결</string>
     <string name="carelevo_patch_connect_step_2_desc">전원 버튼을 1초 이상 길게 눌러 부팅음이 확인 되면 아래 패치 검색 버튼을 눌러주세요.</string>
 
-    <string name="carelevo_patch_safety_check_start_title">안전점검 시작</string>
+    <string name="carelevo_patch_safety_check_start_title">안전점검</string>
     <string name="carelevo_patch_safety_check_end_title">안전점검 완료</string>
-    <string name="carelevo_patch_safety_check_start_desc">정상적으로 연결되었으니 [안전점검]버튼을 눌러주세요.</string>
-    <string name="carelevo_patch_safety_check_end_desc">안전점검을 완료했습니다. 다음 버튼을 눌러주세요.</string>
-    <string name="carelevo_patch_safety_check_desc_warning">안전점검 후 인슐린 방울이 맺혔는지 확인해 주세요.</string>
-    <string name="carelevo_patch_safety_check_retry_desc">인슐린 방울이 맺히지 않았나요?</string>
+    <string name="carelevo_patch_safety_check_start_desc">패치가 정상적으로 연결되었습니다.\n[안전점검]버튼을 눌러주세요.</string>
+    <string name="carelevo_patch_safety_check_progress_desc">안전점검을 진행중입니다.</string>
+    <string name="carelevo_patch_safety_check_end_desc">안전점검을 완료했습니다.\n다음 버튼을 눌러주세요.</string>
+    <string name="carelevo_patch_safety_check_desc_warning">바늘 끝에 인슐린 방울이 맺혔는지 확인해주세요.</string>
+    <string name="carelevo_patch_safety_check_retry_desc">인슐린 방울이 맺히지 않았다면 [재시도] 버튼을 눌러 주세요.</string>
 
     <string name="carelevo_patch_attach_step1_title">부착 부위 소독</string>
     <string name="carelevo_patch_attach_step1_desc">알콜솜으로 깨끗이 소독해 주세요.</string>
     <string name="carelevo_patch_attach_step2_title">패치 보호 테이프 제거</string>
-    <string name="carelevo_patch_attach_step2_desc">패치를 포장재에서 꺼낸 후 보호 테이프를 제거해 주세요.</string>
+    <string name="carelevo_patch_attach_step2_desc">패치의 보호 테이프를 제거해 주세요.</string>
     <string name="carelevo_patch_attach_step3_title">패치 부착</string>
-    <string name="carelevo_patch_attach_step3_desc">패치를 피부에 부착해 주세요.\n잘 부착되었는지 확인 후 [준비완료] 버튼을 눌러주세요.</string>
+    <string name="carelevo_patch_attach_step3_desc">패치에 표시된 점이 위로 향하게 피부에 부착해 주세요.</string>
+    <string name="carelevo_patch_attach_step4_desc">피부에 부착한 후, 준비 완료 버튼을 눌러주세요.</string>
 
     <string name="carelevo_patch_needle_insertion_step1_title">어플리케이터의 안전캡 제거</string>
     <string name="carelevo_patch_needle_insertion_step1_desc">안전캡을 화살표 방향으로 90도 돌린 후 안전캡을 들어 제거해 주세요.</string>
     <string name="carelevo_patch_needle_insertion_step2_title">바늘 삽입</string>
-    <string name="carelevo_patch_needle_insertion_step2_desc">어플리케이터의 푸시 버튼을 끝까지 눌러 바늘을 삽입해 주세요. 정상적으로 바늘이 삽입되면 부저음이 1회 발생합니다.</string>
+    <string name="carelevo_patch_needle_insertion_step2_desc">어플리케이터의 푸시 버튼을 끝까지 눌러 바늘을 삽입해 주세요.\n정상적으로 바늘이 삽입되면 부저음이 발생합니다.\n확인 버튼을 눌러 주세요.</string>
     <string name="carelevo_patch_needle_insertion_desc_warning">누르고 10초 유지하세요.</string>
 
     <string name="carelevo_dialog_patch_needle_check_title">바늘 삽입이 되지 않았나요?</string>
-    <string name="carelevo_dialog_patch_needle_check_desc">어플리케이터 가운데 부분을 끝까지 눌러 바늘을 삽입해 주세요. 정상적으로 바늘이 삽입되면 부저음이 1회 발생합니다.\n아래 [바늘 삽입 점검] 버튼을 눌러주세요.</string>
-    <string name="carelevo_dialog_patch_needle_check_desc_warning">누르고 10초 유지하세요.</string>
+    <string name="carelevo_dialog_patch_needle_check_desc">어플리케이터 가운데 부분을 끝까지 눌러 바늘을 삽입해 주세요. 정상적으로 바늘이 삽입되면 부저음이 발생합니다.\n아래 [바늘 삽입 점검] 버튼을 눌러주세요.</string>
+    <string name="carelevo_dialog_patch_needle_check_retry_desc">어플리케이터 가운데 부분을 끝까지 눌러 바늘을 삽입해 주세요. 정상적으로 바늘이 삽입되면 부저음이 발생합니다.\n아래 [재시도] 버튼을 눌러주세요.</string>
+    <string name="carelevo_dialog_patch_needle_retry_count">바늘 삽입 재시도 횟수가 %d번 남았습니다.</string>
     <string name="carelevo_dialog_patch_discard_message_title">새 패치 사용을 위해 기존 패치를 사용 종료하시겠어요?</string>
     <string name="carelevo_dialog_patch_discard_message_desc">확인 버튼을 누르면 인슐린 주입이 중단됩니다.</string>
-    <string name="carelevo_dialog_patch_connect_message_title">연결하려는 패치 주소가 맞다면 확인 버튼, 아니라면 재검색 버튼을 클릭해 주세요.</string>
+    <string name="carelevo_dialog_patch_connect_message_title">아래 검색된 패치가 있다면 확인 버튼을 눌러 주세요.</string>
+
+    <string name="carelevo_dialog_patch_connect_needle_injected">바늘 삽입 완료 및 어플리케이터 분리</string>
+    <string name="carelevo_dialog_connect_detached">분리 완료</string>
+    <string name="carelevo_dialog_connect_detach_applicator_guide">어플리케이터 양 옆 손잡이를 눌러 패치에서 분리하고\n<b>[분리 완료]</b> 버튼을 눌러주세요. 주입이 시작됩니다.</string>
 
     <!-- 연결 관련 -->
     <string name="carelevo_toast_patch_connecting">패치를 연결하는 중입니다.</string>
@@ -165,6 +183,8 @@
     <string name="carelevo_toast_msg_safety_check_success">안전 점검이 완료되었습니다.</string>
     <string name="carelevo_toast_msg_safety_check_failed">안전 점검에 실패했습니다.</string>
 
+    <string name="carelevo_comm_check_title">통신 점검</string>
+    <string name="carelevo_comm_check_description">패치와 통신이 원활하지 않습니다.\n재연결을 원하시면 통신점검, 사용종료를 원하시면 사용 종료 버튼을 눌러주세요.</string>
 
     <string name="alarm_feat_label_warning">경고</string>
     <string name="alarm_feat_label_alert">주의</string>

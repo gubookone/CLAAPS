@@ -14,19 +14,19 @@
             android:layout_height="wrap_content"
             android:text="@string/carelevo_patch_step_1"
             android:textSize="14sp"
+            app:layout_constraintBottom_toBottomOf="@id/tv_step1_title"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="@id/tv_step1_title"
-            app:layout_constraintBottom_toBottomOf="@id/tv_step1_title"
             tools:text="STEP 1." />
 
         <TextView
             android:id="@+id/tv_step1_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
             android:gravity="center"
             android:text="@string/carelevo_patch_needle_insertion_step1_title"
             android:textSize="18sp"
-            android:layout_marginStart="10dp"
             app:layout_constraintStart_toEndOf="@id/tv_step_1"
             app:layout_constraintTop_toTopOf="parent" />
 
@@ -48,20 +48,20 @@
             android:layout_height="wrap_content"
             android:text="@string/carelevo_patch_step_2"
             android:textSize="14sp"
+            app:layout_constraintBottom_toBottomOf="@id/tv_step2_title"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="@id/tv_step2_title"
-            app:layout_constraintBottom_toBottomOf="@id/tv_step2_title"
             tools:text="STEP 2." />
 
         <TextView
             android:id="@+id/tv_step2_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_marginTop="60dp"
             android:gravity="center"
             android:text="@string/carelevo_patch_needle_insertion_step2_title"
             android:textSize="18sp"
-            android:layout_marginTop="60dp"
-            android:layout_marginStart="10dp"
             app:layout_constraintStart_toEndOf="@id/tv_step_2"
             app:layout_constraintTop_toBottomOf="@id/tv_step1_desc" />
 
@@ -84,7 +84,7 @@
             app:layout_constraintBottom_toBottomOf="@id/tv_desc_warning"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="@id/tv_desc_warning"
-            app:srcCompat="@drawable/ic_toast_error" />
+            app:srcCompat="@drawable/ic_toast_warn" />
 
         <TextView
             android:id="@+id/tv_desc_warning"
@@ -93,7 +93,7 @@
             android:layout_marginStart="4dp"
             android:layout_marginTop="10dp"
             android:text="@string/carelevo_patch_needle_insertion_desc_warning"
-            android:textColor="?attr/ribbonCriticalColor"
+            android:textColor="?attr/warnColor"
             android:textSize="16sp"
             app:layout_constraintStart_toEndOf="@id/iv_warning"
             app:layout_constraintTop_toBottomOf="@id/tv_step2_desc"
@@ -103,29 +103,29 @@
             android:id="@+id/container_buttons"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:layout_constraintBottom_toBottomOf="parent"
-            android:padding="16dp">
+            app:layout_constraintBottom_toBottomOf="parent">
 
             <Button
                 android:id="@+id/btn_discard"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toStartOf="@+id/btn_ok"
+                android:layout_height="60dp"
                 android:layout_marginEnd="8dp"
-                android:text="시용 종료" />
+                android:text="@string/carelevo_btn_patch_expiration"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/btn_ok"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
 
             <Button
                 android:id="@+id/btn_ok"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                app:layout_constraintTop_toTopOf="parent"
+                android:layout_height="60dp"
+                android:text="@string/carelevo_btn_confirm"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toEndOf="@+id/btn_discard"
                 app:layout_constraintEnd_toEndOf="parent"
-                android:text="확인" />
+                app:layout_constraintStart_toEndOf="@+id/btn_discard"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:text="확인" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 

@@ -13,6 +13,7 @@ import app.aaps.core.interfaces.queue.CommandQueue
 import app.aaps.core.interfaces.rx.AapsSchedulers
 import app.aaps.core.interfaces.utils.DateUtil
 import info.nightscout.androidaps.plugins.pump.carelevo.ble.core.CarelevoBleController
+import info.nightscout.androidaps.plugins.pump.carelevo.ble.data.DeviceModuleState
 import info.nightscout.androidaps.plugins.pump.carelevo.common.CarelevoPatch
 import info.nightscout.androidaps.plugins.pump.carelevo.common.MutableEventFlow
 import info.nightscout.androidaps.plugins.pump.carelevo.common.asEventFlow
@@ -24,6 +25,7 @@ import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.ResponseRes
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.infusion.CarelevoInfusionInfoDomainModel
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.model.patch.CarelevoPatchInfoDomainModel
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.alarm.CarelevoAlarmInfoUseCase
+import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.basal.CarelevoSetBasalProgramUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.infusion.CarelevoDeleteInfusionInfoUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.infusion.CarelevoPumpResumeUseCase
 import info.nightscout.androidaps.plugins.pump.carelevo.domain.usecase.infusion.CarelevoPumpStopUseCase
@@ -49,7 +51,6 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.joda.time.DateTime
-import org.joda.time.format.DateTimeFormat
 import java.math.RoundingMode
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -72,11 +73,14 @@ class CarelevoOverviewViewModel @Inject constructor(
     private val pumpResumeUseCase: CarelevoPumpResumeUseCase,
     private val requestPatchInfusionInfoUseCase: CarelevoRequestPatchInfusionInfoUseCase,
     private val alarmUseCase: CarelevoAlarmInfoUseCase,
-    private val carelevoDeleteInfusionInfoUseCase: CarelevoDeleteInfusionInfoUseCase,
+    private val carelevoDeleteInfusionInfoUseCase: CarelevoDeleteInfusionInfoUseCase
 ) : ViewModel() {
 
-    private val _bleState = MutableLiveData<PatchState?>()
-    val bleState: LiveData<PatchState?> get() = _bleState
+    private val _bluetoothState = MutableLiveData<DeviceModuleState?>()
+    val bluetoothState: LiveData<DeviceModuleState?> get() = _bluetoothState
+
+    private val _patchState = MutableLiveData<PatchState?>()
+    val patchState: LiveData<PatchState?> get() = _patchState
 
     private val _serialNumber = MutableLiveData<String>()
     val serialNumber get() = _serialNumber
@@ -87,11 +91,8 @@ class CarelevoOverviewViewModel @Inject constructor(
     private val _bootDateTime = MutableLiveData<String>()
     val bootDateTime get() = _bootDateTime
 
-    private val _expirationTime = MutableLiveData<Int?>()
+    private val _expirationTime = MutableLiveData<String>()
     val expirationTime get() = _expirationTime
-
-    private val _infusionStatus = MutableLiveData<Int?>()
-    val infusionStatus get() = _infusionStatus
 
     private val _basalRate = MutableLiveData<Double>()
     val basalRate get() = _basalRate
@@ -99,26 +100,11 @@ class CarelevoOverviewViewModel @Inject constructor(
     private val _tempBasalRate = MutableLiveData<Double?>()
     val tempBasalRate get() = _tempBasalRate
 
-    private val _bolusStatus = MutableLiveData<Int?>()
-    val bolusStatus get() = _bolusStatus
-
-    private val _immeBolusRate = MutableLiveData<Double?>()
-    val immeBolusRate get() = _immeBolusRate
-
-    private val _extendBolusRate = MutableLiveData<Double?>()
-    val extendBolusRate get() = _extendBolusRate
-
-    private val _bolusTimeRange = MutableLiveData<String?>()
-    val bolusTimeRange get() = _bolusTimeRange
-
     private val _insulinRemains = MutableLiveData<String?>()
     val insulinRemains get() = _insulinRemains
 
-    private val _totalDeliveredBasalAmount = MutableLiveData<Double?>()
-    val totalDeliveredBasalAmount get() = _totalDeliveredBasalAmount
-
-    private val _totalDeliveredBolusAmount = MutableLiveData<Double?>()
-    val totalDeliveredBolusAmount get() = _totalDeliveredBolusAmount
+    private val _totalInsulinAmount = MutableLiveData<Double?>()
+    val totalInsulinAmount get() = _totalInsulinAmount
 
     private val _runningRemainMinutes = MutableLiveData<Int?>()
     val runningRemainMinutes get() = _runningRemainMinutes
@@ -163,6 +149,16 @@ class CarelevoOverviewViewModel @Inject constructor(
         _isCreated = isCreated
     }
 
+    fun observeBleState() {
+        compositeDisposable += carelevoPatch.btState
+            .observeOn(aapsSchedulers.main)
+            .subscribe { btState ->
+                val btState = btState.getOrNull() ?: return@subscribe
+                aapsLogger.debug("[observeBleState] btState: ${btState.isEnabled}")
+                _bluetoothState.value = btState.isEnabled
+            }
+    }
+
     fun observePatchInfo() {
         compositeDisposable += carelevoPatch.patchInfo
             .observeOn(aapsSchedulers.io)
@@ -202,7 +198,6 @@ class CarelevoOverviewViewModel @Inject constructor(
             patchInfo.checkSafety && patchInfo.checkNeedle == null -> CarelevoScreenType.SAFETY_CHECK
             else -> null
         }
-        aapsLogger.debug("updateCheckScreen: $screenType")
         _isCheckScreen.tryEmit(screenType)
     }
 
@@ -213,8 +208,7 @@ class CarelevoOverviewViewModel @Inject constructor(
         _expirationTime.value = ui.expirationTime
         //_infusionStatus.value = ui.infusionStatus
         _insulinRemains.value = ui.insulinRemainText
-        _totalDeliveredBasalAmount.value = ui.totalBasal
-        _totalDeliveredBolusAmount.value = ui.totalBolus
+        _totalInsulinAmount.value = ui.totalBasal + ui.totalBolus
         _isPumpStop.value = ui.isPumpStopped
         _runningRemainMinutes.value = ui.runningRemainMinutes
     }
@@ -222,7 +216,7 @@ class CarelevoOverviewViewModel @Inject constructor(
     private fun buildUi(info: CarelevoPatchInfoDomainModel): CarelevoOverviewUiModel {
         aapsLogger.debug(LTag.PUMP, "[CarelevoOverviewViewModel::buildUi] info : $info")
         val bootLdt = parseBootDateTime(info.bootDateTime)
-        val bootUi = bootLdt?.format(DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm")) ?: ""
+        val bootUi = bootLdt?.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) ?: ""
 
         val infusedBasal = (info.infusedTotalBasalAmount ?: 0.0)
             .toBigDecimal().setScale(2, RoundingMode.HALF_UP).toDouble()
@@ -230,12 +224,13 @@ class CarelevoOverviewViewModel @Inject constructor(
             .toBigDecimal().setScale(2, RoundingMode.HALF_UP).toDouble()
 
         val remainMinutes = bootLdt?.let { getRemainMin(it) } ?: 0
+        val expireAt = bootLdt?.let { getExpireAtText(it) } ?: ""
 
         return CarelevoOverviewUiModel(
             serialNumber = info.manufactureNumber.orEmpty(),
             lotNumber = info.firmwareVersion.orEmpty(),
             bootDateTimeUi = bootUi,
-            expirationTime = info.thresholdExpiry,
+            expirationTime = expireAt,
             infusionStatus = info.mode,
             insulinRemainText = "${info.insulinRemain} / ${info.insulinAmount} U",
             totalBasal = infusedBasal,
@@ -252,7 +247,7 @@ class CarelevoOverviewViewModel @Inject constructor(
                 { response ->
                     aapsLogger.debug(LTag.PUMP, "[CarelevoOverviewViewModel::observePatchState] state : ${response.getOrNull()}")
                     response?.getOrNull()?.let { patchState ->
-                        _bleState.value = patchState
+                        _patchState.value = patchState
                         if (patchState == PatchState.NotConnectedNotBooting) {
                             onDisconnectValue()
                         } else {
@@ -271,55 +266,21 @@ class CarelevoOverviewViewModel @Inject constructor(
             .subscribeOn(aapsSchedulers.io)
             .observeOn(aapsSchedulers.main)
             .subscribe {
-                val infusionInfo = it.getOrNull() ?: return@subscribe
-                aapsLogger.debug(LTag.PUMP, "[CarelevoOverviewViewModel::observeInfusionInfo] basalInfusionInfo : ${infusionInfo.basalInfusionInfo}")
-                aapsLogger.debug(LTag.PUMP, "[CarelevoOverviewViewModel::observeInfusionInfo] tempBasalInfusionInfo : ${infusionInfo.tempBasalInfusionInfo}")
-                aapsLogger.debug(LTag.PUMP, "[CarelevoOverviewViewModel::observeInfusionInfo] immeBolusInfusionInfo : ${infusionInfo.immeBolusInfusionInfo}")
-                aapsLogger.debug(LTag.PUMP, "[CarelevoOverviewViewModel::observeInfusionInfo] extendBolusInfusionInfo : ${infusionInfo.extendBolusInfusionInfo}")
+                val infusionInfo = it.getOrNull() ?: run {
+                    val patchInfo = carelevoPatch.patchInfo.value?.getOrNull() ?: return@subscribe
+                    if (patchInfo.checkNeedle == true) {
+                        _isCheckScreen.tryEmit(CarelevoScreenType.NEEDLE_INSERTION)
+                    }
+                    return@subscribe
+                }
 
                 handleInfusionProgram(infusionInfo)
             }
     }
 
     private fun handleInfusionProgram(info: CarelevoInfusionInfoDomainModel) {
-        val patch = carelevoPatch.patchInfo.value?.getOrNull() ?: return
-
         val temp = info.tempBasalInfusionInfo
         _tempBasalRate.value = temp?.speed
-        _infusionStatus.value = when {
-            temp != null -> 2   // Temp Basal
-            patch.mode == 0 -> 0   // Pump Stop
-            else -> 1   // Basal
-        }
-
-        _bolusStatus.value = null
-        _immeBolusRate.value = null
-        _extendBolusRate.value = null
-        _bolusTimeRange.value = null
-
-        info.immeBolusInfusionInfo?.let { imme ->
-            _bolusStatus.value = 3
-            _immeBolusRate.value = imme.volume
-        }
-
-        info.extendBolusInfusionInfo?.let { ext ->
-            _bolusStatus.value = 5
-            _extendBolusRate.value = ext.volume
-            ext.infusionDurationMin?.let { dur ->
-                _bolusTimeRange.value = formatInfusionTimeRange(ext.createdAt, dur)
-            }
-        }
-
-    }
-
-    fun formatInfusionTimeRange(createdAt: DateTime, infusionDurationMin: Int): String {
-        val endTime = createdAt.plusMinutes(infusionDurationMin)
-        val formatter = DateTimeFormat.forPattern("HH:mm")
-
-        val startStr = formatter.print(createdAt)
-        val endStr = formatter.print(endTime)
-
-        return "$startStr ~ $endStr"
     }
 
     private fun clearExpiredInfusions() {
@@ -536,7 +497,7 @@ class CarelevoOverviewViewModel @Inject constructor(
             true
         }
 
-        aapsLogger.debug(LTag.PUMP, "[startPumpStopProcess] isTempBasalRunning=$cancelTempBasalResult, isExtendBolusRunning=$cancelExtendBolusResult")
+        aapsLogger.debug(LTag.PUMP, "[startPumpStopProcess] isTempBasalRunning=$cancelTempBasalResult, isExtendBolusRunning=$cancelExtendBolusResult, stopMinute: $stopMinute")
 
         if (cancelExtendBolusResult && cancelTempBasalResult) {
             compositeDisposable += pumpStopUseCase.execute(CarelevoPumpStopRequestModel(durationMin = stopMinute))
@@ -690,18 +651,13 @@ class CarelevoOverviewViewModel @Inject constructor(
         _serialNumber.value = ""
         _lotNumber.value = ""
         _bootDateTime.value = ""
-        _expirationTime.value = 0
-        _infusionStatus.value = 0
+        _expirationTime.value = ""
         _insulinRemains.value = ""
-        _totalDeliveredBasalAmount.value = 0.0
-        _totalDeliveredBolusAmount.value = 0.0
+        _totalInsulinAmount.value = 0.0
         _isPumpStop.value = false
         _runningRemainMinutes.value = 0
         _tempBasalRate.value = null
         _basalRate.value = 0.0
-        _immeBolusRate.value = null
-        _extendBolusRate.value = null
-        _bolusTimeRange.value = null
     }
 
     private fun getRemainMin(createdAt: LocalDateTime): Int {
@@ -713,6 +669,20 @@ class CarelevoOverviewViewModel @Inject constructor(
         }
 
         return remainMin.toInt()
+    }
+
+    private fun getExpireAtText(createdAt: LocalDateTime): String {
+        val now = LocalDateTime.now()
+        val baseEnd = createdAt.plusDays(7)
+
+        val expireAt = if (now.isAfter(baseEnd)) {
+            baseEnd.plusHours(12)   // 7일 지난 뒤에만 +12시간
+        } else {
+            baseEnd
+        }
+
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+        return expireAt.format(formatter)
     }
 
     fun refreshPatchInfusionInfo() {

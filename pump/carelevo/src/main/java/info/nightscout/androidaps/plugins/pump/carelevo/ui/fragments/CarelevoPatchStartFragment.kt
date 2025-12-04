@@ -13,6 +13,7 @@ import info.nightscout.androidaps.plugins.pump.carelevo.R
 import info.nightscout.androidaps.plugins.pump.carelevo.databinding.FragmentCarelevoPatchStartBinding
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.base.CarelevoBaseCircleProgress
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.base.CarelevoBaseFragment
+import info.nightscout.androidaps.plugins.pump.carelevo.ui.dialog.InsulinRefillGuideDialog
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.dialog.TenStepNumberPickerBottomSheet
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.ext.showDialogDiscardConfirm
 import info.nightscout.androidaps.plugins.pump.carelevo.ui.type.CarelevoPatchStep
@@ -22,7 +23,6 @@ import info.nightscout.androidaps.plugins.pump.carelevo.ui.viewModel.CarelevoPat
 class CarelevoPatchStartFragment : CarelevoBaseFragment<FragmentCarelevoPatchStartBinding>(R.layout.fragment_carelevo_patch_start) {
 
     companion object {
-
         fun getInstance(): CarelevoPatchStartFragment = CarelevoPatchStartFragment()
     }
 
@@ -46,22 +46,30 @@ class CarelevoPatchStartFragment : CarelevoBaseFragment<FragmentCarelevoPatchSta
             }
 
             btnNext.setOnClickListener {
-                TenStepNumberPickerBottomSheet(
-                    initialValue = sharedViewModel.inputInsulin,
-                ) { selected ->
-                    if (checkPermissions()) {
-                        sharedViewModel.setInputInsulin(selected)
-                        sharedViewModel.setPage(CarelevoPatchStep.PATCH_CONNECT)
-                    } else {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                            ActivityCompat.requestPermissions(requireActivity(), arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT), 100)
-                        } else {
-                            ActivityCompat.requestPermissions(requireActivity(), arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 100)
-                        }
-                    }
-                }.show(parentFragmentManager, "Picker")
+                showNumberPickerDialog()
+            }
+
+            btnGuide.setOnClickListener {
+                InsulinRefillGuideDialog.Builder().build().show(parentFragmentManager, "InsulinRefillGuideDialog")
             }
         }
+    }
+
+    private fun showNumberPickerDialog(){
+        TenStepNumberPickerBottomSheet(
+            initialValue = sharedViewModel.inputInsulin,
+        ) { selected ->
+            if (checkPermissions()) {
+                sharedViewModel.setInputInsulin(selected)
+                sharedViewModel.setPage(CarelevoPatchStep.PATCH_CONNECT)
+            } else {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    ActivityCompat.requestPermissions(requireActivity(), arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT), 100)
+                } else {
+                    ActivityCompat.requestPermissions(requireActivity(), arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 100)
+                }
+            }
+        }.show(parentFragmentManager, "Picker")
     }
 
     private fun checkPermissions(): Boolean {

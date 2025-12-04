@@ -59,7 +59,6 @@
                 android:text='@{key}'
                 android:textAppearance='?attr/textAppearanceBodyMedium'
                 android:textSize="16sp"
-                android:textStyle="bold"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toStartOf="@+id/tv_divide"
                 app:layout_constraintHorizontal_chainStyle="packed"
@@ -72,29 +71,52 @@
                 android:id="@+id/tv_divide"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginHorizontal="6dp"
+                android:paddingHorizontal="6dp"
                 android:gravity="center"
                 android:text=":"
                 android:textSize="16sp"
                 app:layout_constraintBottom_toBottomOf="@id/tv_key"
-                app:layout_constraintEnd_toStartOf="@+id/tv_value"
+                app:layout_constraintEnd_toStartOf="@+id/layout_value"
                 app:layout_constraintStart_toEndOf="@id/tv_key"
                 app:layout_constraintTop_toTopOf="@id/tv_key" />
 
-            <TextView
-                android:id="@+id/tv_value"
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/layout_value"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:gravity="start"
-                android:text='@{value}'
-                android:textAppearance='?attr/textAppearanceBodyMedium'
-                android:textSize="16sp"
                 app:layout_constraintBottom_toBottomOf="@id/tv_key"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintHorizontal_weight="1"
                 app:layout_constraintStart_toEndOf="@id/tv_divide"
-                app:layout_constraintTop_toTopOf="@id/tv_key"
-                tools:text="ABCD-1234-5678" />
+                app:layout_constraintTop_toTopOf="@id/tv_key">
+
+                <ImageView
+                    android:id="@+id/iv_image"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    app:layout_constraintBottom_toBottomOf="@id/tv_value"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="@id/tv_value"
+                    tools:src="@drawable/ic_bt_connected"
+                    tools:visibility="visible" />
+
+                <TextView
+                    android:id="@+id/tv_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="start"
+                    android:text='@{value}'
+                    android:textAppearance='?attr/textAppearanceBodyMedium'
+                    android:textSize="16sp"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/iv_image"
+                    app:layout_constraintTop_toTopOf="parent"
+                    tools:text="ABCD-1234-5678" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+
         </androidx.constraintlayout.widget.ConstraintLayout>
 
         <!-- 하단 구분선 -->

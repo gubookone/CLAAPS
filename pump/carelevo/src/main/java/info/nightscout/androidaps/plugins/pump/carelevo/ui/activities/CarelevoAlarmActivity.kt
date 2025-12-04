@@ -105,7 +105,6 @@ class CarelevoAlarmActivity : TranslatedDaggerAppCompatActivity() {
             .show(supportFragmentManager, "")
     }
 
-    /** descRes에 들어갈 가변 인자들을 원인별로 생성 */
     private fun buildDescArgsFor(alarm: CarelevoAlarmInfo): List<String> = when (alarm.cause) {
         AlarmCause.ALARM_NOTICE_LOW_INSULIN,
         AlarmCause.ALARM_ALERT_OUT_OF_INSULIN -> {
